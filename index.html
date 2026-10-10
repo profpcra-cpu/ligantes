@@ -1,286 +1,205 @@
 <!DOCTYPE html>
-<html lang="pt" data-theme="light">
+<html lang="pt-PT" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Brain Curves — IQ Challenge</title>
+<title>Brain Curves — Brain Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg-gradient-1: #e0e7ff;
-    --bg-gradient-2: #f8fafc;
-    --card-bg: #ffffff;
-    --card-border: rgba(15, 23, 42, 0.08);
-    --text-color: #0f172a;
-    --text-muted: #64748b;
-    --btn-primary: #6366f1;
-    --c-blue: #38bdf8;
-    --c-green: #4ade80;
-    --c-red: #ef4444;
+    --bg-color: #0b1020; --bg-gradient-1: #1e1b4b; --bg-gradient-2: #0b1020;
+    --card-bg: rgba(30, 41, 59, 0.72); --card-border: rgba(148, 163, 184, 0.15);
+    --text-color: #f8fafc; --text-muted: #94a3b8; --border-color: rgba(148, 163, 184, 0.18);
+    --input-bg: rgba(15, 23, 42, 0.7); --btn-primary: #6366f1; --btn-accent: #8b5cf6;
+    --c-green: #4ade80; --c-blue: #38bdf8; --c-amber: #f59e0b; --c-star: #fbbf24;
+    --board-bg: rgba(15, 23, 42, 0.55); --cell-empty: rgba(30, 41, 59, 0.55);
 }
-
+[data-theme="light"] {
+    --bg-color: #eef2ff; --bg-gradient-1: #e0e7ff; --bg-gradient-2: #f8fafc;
+    --card-bg: rgba(255, 255, 255, 0.9); --card-border: rgba(15, 23, 42, 0.08);
+    --text-color: #0f172a; --text-muted: #475569; --border-color: rgba(15, 23, 42, 0.1);
+    --input-bg: rgba(255, 255, 255, 0.95); --board-bg: rgba(248, 250, 252, 0.95);
+    --cell-empty: rgba(226, 232, 240, 0.7);
+}
 *, *::before, *::after { box-sizing: border-box; }
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background: radial-gradient(circle at 20% 0%, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 55%);
-    background-attachment: fixed;
-    color: var(--text-color);
-    margin: 0;
-    padding: 16px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+    background-attachment: fixed; color: var(--text-color); margin: 0; padding: 16px;
+    display: flex; justify-content: center; align-items: center; min-height: 100vh;
     touch-action: manipulation;
 }
-
 .container {
-    background: var(--card-bg);
-    padding: 24px;
-    border-radius: 36px;
-    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
-    width: 100%;
-    max-width: 440px;
-    text-align: center;
-    border: 1px solid var(--card-border);
+    background: var(--card-bg); backdrop-filter: blur(18px); padding: 20px;
+    border-radius: 20px; width: 100%; max-width: 520px; text-align: center;
+    border: 1px solid var(--card-border); box-shadow: 0 20px 60px -20px rgba(0,0,0,0.65);
 }
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.iq-badge {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--text-color);
-    letter-spacing: -0.5px;
-    margin-bottom: 12px;
-}
-
-.board-wrapper {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    background: #ffffff;
-    border-radius: 28px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
-    overflow: hidden;
-    margin-bottom: 16px;
-    cursor: crosshair;
-}
-
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-
-.controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-button, select {
-    width: 100%;
-    padding: 12px;
-    border-radius: 16px;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-    transition: transform 0.1s ease;
-}
-button:active { transform: scale(0.98); }
-.btn-action { background: var(--btn-primary); color: #fff; }
-.btn-secondary { background: #f1f5f9; color: var(--text-muted); }
-select { background: #f1f5f9; color: var(--text-color); font-weight: 700; text-align: center; appearance: none; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.btn-small { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; text-decoration: none; }
+.user-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: var(--input-bg); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); }
+.score-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: var(--input-bg); padding: 10px; border-radius: 12px; margin-bottom: 12px; font-size: 10px; border: 1px solid var(--border-color); color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+.score-board strong { font-size: 14px; font-family: 'JetBrains Mono', monospace; text-transform: none; }
+#display-nivel { color: var(--c-blue); } #display-pontos { color: var(--c-green); } #display-tempo { color: #60a5fa; } #display-pares { color: var(--c-amber); } #display-estrelas { color: var(--c-star); }
+.instructions { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 12px; min-height: 36px; }
+.board-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 420px; margin: 0 auto 12px; border-radius: 14px; overflow: hidden; background: var(--board-bg); border: 2px solid rgba(99, 102, 241, 0.35); touch-action: none; user-select: none; -webkit-user-select: none; }
+#game-board { position: absolute; inset: 0; display: grid; gap: 2px; padding: 6px; }
+.cell { background: var(--cell-empty); border-radius: 4px; position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.endpoint { width: 68%; height: 68%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; color: #fff; border: 2px solid rgba(255,255,255,0.75); z-index: 3; pointer-events: none; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.35), 0 3px 6px rgba(0,0,0,0.35); }
+.endpoint.connected { box-shadow: inset -2px -2px 4px rgba(0,0,0,0.35), 0 0 0 4px rgba(255,255,255,0.55), 0 0 20px rgba(255,255,255,0.6); }
+.cell.trail { background: var(--trail-color, transparent); }
+.cell.trail::after { content: ""; position: absolute; inset: 34%; border-radius: 50%; background: rgba(255,255,255,0.92); }
+.controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+select, button.action { width: 100%; padding: 12px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); }
+button.action { border: none; background: linear-gradient(135deg, var(--btn-primary), var(--btn-accent)); color: #fff; }
+button.secondary { background: linear-gradient(135deg, #475569, #334155); }
 </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <a href="#" style="text-decoration:none; color:var(--text-muted); font-weight:700; font-size:14px;">⬅ Voltar</a>
-        <span id="display-pontos" style="font-weight:800; color:var(--btn-primary);">Pontos: 0</span>
+    <div class="top-bar">
+        <a href="#" class="btn-small">⬅ Voltar</a>
+        <button id="theme-toggle" class="btn-small">🌙 Tema</button>
     </div>
 
-    <div class="iq-badge" id="iq-display">IQ = 94</div>
-
-    <div class="board-wrapper">
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div class="user-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span id="display-avatar" style="font-size:20px;">🎮</span>
+            <strong id="display-nome">Jogador</strong>
+        </div>
+        <span style="font-size:12px; color:var(--text-muted);">Brain Curves</span>
     </div>
 
-    <div class="controls">
+    <div class="score-board">
+        <div>Nível<br><strong id="display-nivel">1</strong></div>
+        <div>Pontos<br><strong id="display-pontos">0</strong></div>
+        <div>Tempo<br><strong id="display-tempo">00:00</strong></div>
+        <div>Pares<br><strong id="display-pares">0/2</strong></div>
+        <div>⭐<br><strong id="display-estrelas">0</strong></div>
+    </div>
+
+    <p class="instructions" id="info-instrucao">Arraste para ligar os pares correspondentes.</p>
+
+    <div class="board-wrapper" id="board-wrapper">
+        <div id="game-board"></div>
+    </div>
+
+    <div class="controls-grid">
         <select id="select-nivel">
-            <option value="1">Nível 1 (Básico)</option>
-            <option value="2">Nível 2 (Intermédio)</option>
-            <option value="3">Nível 3 (Avançado)</option>
+            <option value="1" selected>Nível 1 (5×5)</option>
+            <option value="2">Nível 2 (6×6)</option>
+            <option value="3">Nível 3 (7×7)</option>
         </select>
-        <button class="btn-action" id="btn-reset">🔄 Reiniciar</button>
+        <button id="btn-reset" class="action secondary">🔄 Reiniciar</button>
     </div>
 </div>
 
 <script type="module">
-import { db } from "./firebase-config.js";
-import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { estado, iniciarPuzzle, atualizarVisualDom, lidarComMovimento, limparTrilha } from "./game-engine.js";
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+document.getElementById('display-nome').textContent = estado.jogadorSessao.nome;
+document.getElementById('display-avatar').textContent = estado.jogadorSessao.avatar;
 
-const estado = {
-    nivel: 1,
-    pares: [
-        { id: 0, cor: '#4ade80', a: { x: 60, y: 60 }, b: { x: 340, y: 340 } },
-        { id: 1, cor: '#ef4444', a: { x: 340, y: 60 }, b: { x: 60, y: 340 } }
-    ],
-    trilhas: {},
-    desenhando: null,
-    pontos: 0,
-    jogadorSessao: JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default' }
+const board = document.getElementById('game-board');
+const displayTempo = document.getElementById('display-tempo');
+const displayPares = document.getElementById('display-pares');
+const infoInstrucao = document.getElementById('info-instrucao');
+const selectNivel = document.getElementById('select-nivel');
+const btnReset = document.getElementById('btn-reset');
+const themeToggle = document.getElementById('theme-toggle');
+
+const callbacks = {
+    onAtualizarVisual: () => {
+        atualizarVisualDom();
+        displayPares.textContent = `${Object.keys(estado.trilhas).length}/${estado.pares.length}`;
+    },
+    onAtualizarTempo: (tempoStr) => { displayTempo.textContent = tempoStr; },
+    onVitoria: () => { infoInstrucao.innerHTML = "🎉 <b>Parabéns! Nível concluído com sucesso!</b>"; }
 };
 
-function desenharTabuleiro() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+let activePointerId = null;
 
-    // Desenhar trilhas ativas com curvas suaves (Bézier)
-    for (const parId in estado.trilhas) {
-        const trilha = estado.trilhas[parId];
-        if (trilha.length < 2) continue;
-        
-        ctx.beginPath();
-        ctx.strokeStyle = trilha.cor;
-        ctx.lineWidth = 14;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+// Função otimizada para capturar células por coordenadas (Perfeito para telemóveis)
+function obterCelulaPorCoordenadas(clientX, clientY) {
+    const rect = board.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+        return null;
+    }
+    const n = estado.tamanho;
+    const larguraCelula = rect.width / n;
+    const alturaCelula = rect.height / n;
+    
+    const c = Math.floor((clientX - rect.left) / larguraCelula);
+    const r = Math.floor((clientY - rect.top) / alturaCelula);
+    
+    if (r >= 0 && r < n && c >= 0 && c < n) {
+        return { r, c };
+    }
+    return null;
+}
 
-        ctx.moveTo(trilha[0].x, trilha[0].y);
-        for (let i = 1; i < trilha.length; i++) {
-            ctx.lineTo(trilha[i].x, trilha[i].y);
+board.addEventListener('pointerdown', (e) => {
+    if (estado.concluido) return;
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+    const dado = estado.grid[r][c];
+
+    if (dado.tipo === 'endpoint') {
+        e.preventDefault();
+        activePointerId = e.pointerId;
+        try { board.setPointerCapture(e.pointerId); } catch (_) {}
+
+        if (estado.trilhas[dado.parId]) {
+            limparTrilha(estado.trilhas[dado.parId]);
+            delete estado.trilhas[dado.parId];
         }
-        ctx.stroke();
+        estado.desenhando = { parId: dado.parId, cor: dado.cor, pontos: [{ r, c }] };
+        callbacks.onAtualizarVisual();
     }
-
-    // Desenhar linha em tempo real ao arrastar
-    if (estado.desenhando && estado.desenhando.pontos.length > 1) {
-        const d = estado.desenhando;
-        ctx.beginPath();
-        ctx.strokeStyle = d.cor;
-        ctx.lineWidth = 14;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        ctx.moveTo(d.pontos[0].x, d.pontos[0].y);
-        for (let i = 1; i < d.pontos.length; i++) {
-            ctx.lineTo(d.pontos[i].x, d.pontos[i].y);
-        }
-        ctx.stroke();
-    }
-
-    // Desenhar as esferas (Endpoints) com efeito 3D e sombra realista
-    estado.pares.forEach(par => {
-        [par.a, par.b].forEach(p => {
-            ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-            ctx.shadowBlur = 12;
-            ctx.shadowOffsetY = 6;
-
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 22, 0, Math.PI * 2);
-            ctx.fillStyle = par.cor;
-            ctx.fill();
-
-            // Brilho interior (estilo esfera 3D da imagem)
-            ctx.beginPath();
-            ctx.arc(p.x - 6, p.y - 6, 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.fill();
-
-            ctx.restore();
-        });
-    });
-}
-
-// Controlo de toque e rato no Canvas
-let ativo = false;
-let parAtual = null;
-
-canvas.addEventListener('pointerdown', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-    estado.pares.forEach(par => {
-        [ {p: par.a, tipo: 'a'}, {p: par.b, tipo: 'b'} ].forEach(item => {
-            if (Math.hypot(item.p.x - x, item.p.y - y) < 28) {
-                ativo = true;
-                parAtual = par;
-                delete estado.trilhas[par.id];
-                estado.desenhando = { parId: par.id, cor: par.cor, pontos: [{ x: item.p.x, y: item.p.y }] };
-            }
-        });
-    });
 });
 
-canvas.addEventListener('pointermove', (e) => {
-    if (!ativo || !estado.desenhando) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+board.addEventListener('pointermove', (e) => {
+    if (!estado.desenhando || e.pointerId !== activePointerId) return;
+    e.preventDefault();
 
-    estado.desenhando.pontos.push({ x, y });
-    desenharTabuleiro();
+    const coords = obterCelulaPorCoordenadas(e.clientX, e.clientY);
+    if (!coords) return;
+
+    lidarComMovimento(coords.r, coords.c, callbacks);
 });
 
-canvas.addEventListener('pointerup', (e) => {
-    if (!ativo || !estado.desenhando) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-    // Verificar se chegou ao ponto final correspondente
-    const par = estado.pares.find(p => p.id === estado.desenhando.parId);
-    const outroPonto = (Math.hypot(par.a.x - estado.desenhando.pontos[0].x, par.a.y - estado.desenhando.pontos[0].y) < 20) ? par.b : par.a;
-
-    if (Math.hypot(outroPonto.x - x, outroPonto.y - y) < 30) {
-        estado.trilhas[par.id] = [...estado.desenhando.pontos];
-        verificarVitoria();
+board.addEventListener('pointerup', (e) => {
+    if (e.pointerId === activePointerId) {
+        try { board.releasePointerCapture(e.pointerId); } catch (_) {}
+        activePointerId = null;
+        estado.desenhando = null;
+        callbacks.onAtualizarVisual();
     }
-
-    ativo = false;
-    estado.desenhando = null;
-    desenharTabuleiro();
 });
 
-function verificarVitoria() {
-    if (Object.keys(estado.trilhas).length === estado.pares.length) {
-        document.getElementById('iq-display').textContent = "IQ = 145 🎉";
-        estado.pontos += 150;
-        document.getElementById('display-pontos').textContent = `Pontos: ${estado.pontos}`;
-        salvarNoFirebase();
+board.addEventListener('pointercancel', (e) => {
+    if (e.pointerId === activePointerId) {
+        try { board.releasePointerCapture(e.pointerId); } catch (_) {}
+        activePointerId = null;
+        estado.desenhando = null;
+        callbacks.onAtualizarVisual();
     }
-}
-
-async function salvarNoFirebase() {
-    try {
-        const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, { pontos: estado.pontos, ultimaAtividade: new Date().toISOString() });
-    } catch (_) {}
-}
-
-document.getElementById('btn-reset').addEventListener('click', () => {
-    estado.trilhas = {};
-    document.getElementById('iq-display').textContent = "IQ = 94";
-    desenharTabuleiro();
 });
 
-desenharTabuleiro();
+selectNivel.addEventListener('change', (e) => iniciarPuzzle(parseInt(e.target.value), board, callbacks));
+btnReset.addEventListener('click', () => iniciarPuzzle(estado.nivel, board, callbacks));
+
+themeToggle.addEventListener('click', () => {
+    const atual = document.documentElement.getAttribute('data-theme');
+    const proximo = atual === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', proximo);
+    themeToggle.textContent = proximo === 'dark' ? '🌙 Tema' : '☀️ Tema';
+});
+
+iniciarPuzzle(1, board, callbacks);
 </script>
 </body>
 </html>
