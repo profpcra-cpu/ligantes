@@ -2,7 +2,7 @@
 <html lang="pt-PT" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Brain Curves — IQ Challenge</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,9 +16,17 @@
     --text-color: #0f172a;
     --text-muted: #64748b;
     --btn-primary: #6366f1;
+    --btn-primary-active: #4f46e5;
+    --btn-ghost: #f1f5f9;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background: radial-gradient(circle at 20% 0%, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 55%);
@@ -26,17 +34,19 @@ body {
     color: var(--text-color);
     margin: 0;
     padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    min-height: 100dvh;
     touch-action: manipulation;
 }
 
 .container {
     background: var(--card-bg);
-    padding: 24px;
-    border-radius: 36px;
+    padding: 20px;
+    border-radius: 32px;
     box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
     width: 100%;
     max-width: 480px;
@@ -48,15 +58,44 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.header a, .header span {
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.header a { color: var(--text-muted); }
+#display-pontos { color: var(--btn-primary); font-weight: 800; }
+
+.stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 8px;
 }
 
 .iq-badge {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
     color: var(--text-color);
     letter-spacing: -0.5px;
-    margin-bottom: 12px;
+    text-align: left;
+    flex: 1;
+}
+
+.timer-badge {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--btn-ghost);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
 .board-wrapper {
@@ -64,17 +103,21 @@ body {
     width: 100%;
     aspect-ratio: 1 / 1;
     background: #ffffff;
-    border-radius: 28px;
+    border-radius: 24px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
     overflow: hidden;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     cursor: crosshair;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 canvas {
     display: block;
     width: 100%;
     height: 100%;
+    touch-action: none;
 }
 
 .controls {
@@ -83,247 +126,681 @@ canvas {
     gap: 10px;
 }
 
+.controls .full {
+    grid-column: 1 / -1;
+}
+
 button, select {
     width: 100%;
-    padding: 12px;
+    min-height: 48px;
+    padding: 12px 16px;
     border-radius: 16px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     border: none;
-    transition: transform 0.1s ease;
+    transition: transform 0.1s ease, background-color 0.15s ease;
+    -webkit-appearance: none;
+    appearance: none;
 }
+
 button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .btn-action { background: var(--btn-primary); color: #fff; }
-select { background: #f1f5f9; color: var(--text-color); font-weight: 700; text-align: center; appearance: none; }
+.btn-action:active { background: var(--btn-primary-active); }
+.btn-ghost { background: var(--btn-ghost); color: var(--text-color); }
+
+select {
+    background: var(--btn-ghost);
+    color: var(--text-color);
+    text-align: left;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 22px;
+    padding-right: 40px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Toast de vitória */
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    padding: 14px 24px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 16px;
+    box-shadow: 0 15px 40px -8px rgba(99, 102, 241, 0.5);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <a href="#" style="text-decoration:none; color:var(--text-muted); font-weight:700; font-size:14px;">⬅ Voltar</a>
-        <span id="display-pontos" style="font-weight:800; color:var(--btn-primary);">Pontos: 0</span>
+        <a href="javascript:history.back()">⬅ Voltar</a>
+        <span id="display-pontos">Pontos: 0</span>
     </div>
 
-    <div class="iq-badge" id="iq-display">IQ = 94</div>
+    <div class="stats">
+        <div class="iq-badge" id="iq-display">IQ = 94</div>
+        <div class="timer-badge" id="timer-display">00:00</div>
+    </div>
 
     <div class="board-wrapper">
-        <canvas id="gameCanvas" width="500" height="500"></canvas>
+        <canvas id="gameCanvas" role="img" aria-label="Tabuleiro do jogo Brain Curves"></canvas>
     </div>
 
     <div class="controls">
-        <select id="select-nivel">
+        <label for="select-nivel" class="sr-only">Nível</label>
+        <select id="select-nivel" aria-label="Selecionar nível">
             <option value="1">Nível 1 (1 Par)</option>
             <option value="2">Nível 2 (2 Pares)</option>
             <option value="3">Nível 3 (3 Pares)</option>
             <option value="4">Nível 4 (4 Pares)</option>
             <option value="5" selected>Nível 5 (5 Pares)</option>
         </select>
-        <button class="btn-action" id="btn-reset">🔄 Reiniciar</button>
+        <button class="btn-ghost" id="btn-undo" disabled>↶ Desfazer</button>
+        <button class="btn-action full" id="btn-reset">🔄 Reiniciar</button>
     </div>
 </div>
+
+<div class="toast" id="toast">🎉 Nível completo!</div>
 
 <script type="module">
 import { db } from "./firebase-config.js";
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+// ────────────────────────────────────────────────────────────────
+// CONFIG
+// ────────────────────────────────────────────────────────────────
+const LOGICAL_SIZE = 500;         // tamanho lógico do canvas
+const GRID = 12;                  // 12x12 células — snap confortável para o dedo
+const CELL = LOGICAL_SIZE / GRID;
+const SNAP_RADIUS = CELL * 1.4;   // raio de captura do dedo (px lógicos)
+const END_RADIUS = CELL * 0.38;   // raio visual da bola
+const HIT_RADIUS = CELL * 0.6;    // raio de captura ao tocar a bola
 
-const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+const PALETA = [
+    '#22c55e', '#3b82f6', '#ef4444', '#f59e0b',
+    '#a855f7', '#06b6d4', '#ec4899', '#84cc16'
+];
 
+// ────────────────────────────────────────────────────────────────
+// ESTADO
+// ────────────────────────────────────────────────────────────────
 const estado = {
     nivel: 5,
-    pares: [],
-    trilhas: {},
-    desenhando: null,
+    pares: [],                // [{ id, cor, a:{r,c}, b:{r,c} }]
+    trilhas: {},              // { parId: { cor, celulas:[{r,c}] } }
+    desenhando: null,         // { parId, cor, celulas:[{r,c}] }
+    historico: [],            // pilha de snapshots de trilhas (para desfazer)
     pontos: 0,
+    segundos: 0,
+    timer: null,
+    concluido: false,
     jogadorSessao: JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default' }
 };
 
+// ────────────────────────────────────────────────────────────────
+// CANVAS + DPR (nitidez em telas Retina)
+// ────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function configurarCanvas() {
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+    canvas.width = LOGICAL_SIZE * dpr;
+    canvas.height = LOGICAL_SIZE * dpr;
+    canvas.style.width = LOGICAL_SIZE + 'px';
+    canvas.style.height = LOGICAL_SIZE + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+configurarCanvas();
+
+// Reconfigura se a janela mudar de DPR (raro, mas acontece ao mover entre monitores)
+window.addEventListener('resize', () => {
+    configurarCanvas();
+    desenharTabuleiro();
+});
+
+// ────────────────────────────────────────────────────────────────
+// HELPERS
+// ────────────────────────────────────────────────────────────────
+const cellToPx = (r, c) => ({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 });
+const pxToCell = (x, y) => ({
+    r: Math.max(0, Math.min(GRID - 1, Math.floor(y / CELL))),
+    c: Math.max(0, Math.min(GRID - 1, Math.floor(x / CELL)))
+});
+const key = (r, c) => `${r},${c}`;
+
+// ────────────────────────────────────────────────────────────────
+// GERAÇÃO DE PARES (snap em células do grid)
+// ────────────────────────────────────────────────────────────────
 function gerarPares(qtd) {
     const pares = [];
-    const margem = 60;
-    const tamanhoArea = canvas.width - (margem * 2);
+    const ocupados = new Set();
+    const distMin = 4;
+    const margem = 1; // não colocar nas bordas extremas
 
     for (let i = 0; i < qtd; i++) {
-        let a, b;
-        let tentativas = 0;
+        let a, b, tentativas = 0;
 
         do {
-            a = { x: margem + Math.random() * tamanhoArea, y: margem + Math.random() * tamanhoArea };
-            b = { x: margem + Math.random() * tamanhoArea, y: margem + Math.random() * tamanhoArea };
+            a = {
+                r: margem + Math.floor(Math.random() * (GRID - margem * 2)),
+                c: margem + Math.floor(Math.random() * (GRID - margem * 2))
+            };
+            b = {
+                r: margem + Math.floor(Math.random() * (GRID - margem * 2)),
+                c: margem + Math.floor(Math.random() * (GRID - margem * 2))
+            };
             tentativas++;
-        } while (Math.hypot(a.x - b.x, a.y - b.y) < 120 && tentativas < 100);
+        } while (
+            tentativas < 400 && (
+                ocupados.has(key(a.r, a.c)) ||
+                ocupados.has(key(b.r, b.c)) ||
+                (Math.abs(a.r - b.r) + Math.abs(a.c - b.c)) < distMin ||
+                a.r === b.r || a.c === b.c
+            )
+        );
 
-        pares.push({
-            id: i,
-            cor: PALETA[i % PALETA.length],
-            a, b
-        });
+        // fallback de segurança
+        if (tentativas >= 400) {
+            a = { r: margem + i, c: margem };
+            b = { r: margem + i, c: GRID - margem - 1 };
+        }
+
+        ocupados.add(key(a.r, a.c));
+        ocupados.add(key(b.r, b.c));
+        pares.push({ id: i, cor: PALETA[i % PALETA.length], a, b });
     }
     return pares;
 }
 
+// ────────────────────────────────────────────────────────────────
+// INICIALIZAÇÃO
+// ────────────────────────────────────────────────────────────────
 function iniciarJogo(nivel) {
     estado.nivel = nivel;
     estado.pares = gerarPares(nivel);
     estado.trilhas = {};
     estado.desenhando = null;
+    estado.historico = [];
+    estado.concluido = false;
+    estado.segundos = 0;
+
+    atualizarBotaoUndo();
+    atualizarDisplayTempo();
+    iniciarTimer();
     document.getElementById('iq-display').textContent = `IQ = ${90 + nivel * 10}`;
+
+    // limpa trilha do desenhando
+    activePointerId = null;
+
     desenharTabuleiro();
+}
+
+// ────────────────────────────────────────────────────────────────
+// RENDER
+// ────────────────────────────────────────────────────────────────
+let rafPendente = false;
+function agendarDesenho() {
+    if (rafPendente) return;
+    rafPendente = true;
+    requestAnimationFrame(() => {
+        desenharTabuleiro();
+        rafPendente = false;
+    });
+}
+
+function desenharTrilha(celulas, cor, alpha = 1) {
+    if (!celulas || celulas.length < 1) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = CELL * 0.55;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    const first = cellToPx(celulas[0].r, celulas[0].c);
+    ctx.moveTo(first.x, first.y);
+    for (let i = 1; i < celulas.length; i++) {
+        const p = cellToPx(celulas[i].r, celulas[i].c);
+        ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+
+    // brilho interno
+    ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+    ctx.lineWidth = CELL * 0.16;
+    ctx.stroke();
+    ctx.restore();
+}
+
+function desenharBola(r, c, cor, conectada) {
+    const { x, y } = cellToPx(r, c);
+    const raio = END_RADIUS;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+
+    ctx.beginPath();
+    ctx.arc(x, y, raio, 0, Math.PI * 2);
+    ctx.fillStyle = cor;
+    ctx.fill();
+
+    // brilho
+    ctx.beginPath();
+    ctx.arc(x - raio * 0.3, y - raio * 0.3, raio * 0.32, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fill();
+
+    if (conectada) {
+        ctx.beginPath();
+        ctx.arc(x, y, raio + 4, 0, Math.PI * 2);
+        ctx.strokeStyle = cor;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.5;
+        ctx.stroke();
+    }
+    ctx.restore();
 }
 
 function desenharTabuleiro() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
 
-    for (const parId in estado.trilhas) {
-        const trilha = estado.trilhas[parId];
-        if (trilha.pontos.length < 2) continue;
+    // grid sutil (feedback de snap)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(15,23,42,0.045)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= GRID; i++) {
+        const p = i * CELL;
+        ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, LOGICAL_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(LOGICAL_SIZE, p); ctx.stroke();
+    }
+    ctx.restore();
 
-        ctx.beginPath();
-        ctx.strokeStyle = trilha.cor;
-        ctx.lineWidth = 16;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        ctx.moveTo(trilha.pontos[0].x, trilha.pontos[0].y);
-        for (let i = 1; i < trilha.pontos.length; i++) {
-            ctx.lineTo(trilha.pontos[i].x, trilha.pontos[i].y);
-        }
-        ctx.stroke();
+    // trilhas concluídas
+    for (const id in estado.trilhas) {
+        const t = estado.trilhas[id];
+        desenharTrilha(t.celulas, t.cor);
     }
 
-    if (estado.desenhando && estado.desenhando.pontos.length > 1) {
-        const d = estado.desenhando;
-        ctx.beginPath();
-        ctx.strokeStyle = d.cor;
-        ctx.lineWidth = 16;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        ctx.moveTo(d.pontos[0].x, d.pontos[0].y);
-        for (let i = 1; i < d.pontos.length; i++) {
-            ctx.lineTo(d.pontos[i].x, d.pontos[i].y);
-        }
-        ctx.stroke();
+    // trilha em andamento
+    if (estado.desenhando && estado.desenhando.celulas.length) {
+        desenharTrilha(estado.desenhando.celulas, estado.desenhando.cor, 0.9);
     }
 
+    // bolas
     estado.pares.forEach(par => {
-        [par.a, par.b].forEach(p => {
-            ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-            ctx.shadowBlur = 14;
-            ctx.shadowOffsetY = 6;
-
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 24, 0, Math.PI * 2);
-            ctx.fillStyle = par.cor;
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(p.x - 7, p.y - 7, 7, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-            ctx.fill();
-
-            ctx.restore();
-        });
+        const conectada = !!estado.trilhas[par.id];
+        desenharBola(par.a.r, par.a.c, par.cor, conectada);
+        desenharBola(par.b.r, par.b.c, par.cor, conectada);
     });
 }
 
+// ────────────────────────────────────────────────────────────────
+// INPUT
+// ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 
-function obterCoordenadasCanvas(e) {
+function obterCoordenadas(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
+        x: (e.clientX - rect.left) * (LOGICAL_SIZE / rect.width),
+        y: (e.clientY - rect.top) * (LOGICAL_SIZE / rect.height)
     };
 }
 
-canvas.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    const pos = obterCoordenadasCanvas(e);
+function buscarBolaEm(r, c) {
+    for (const par of estado.pares) {
+        if ((par.a.r === r && par.a.c === c) || (par.b.r === r && par.b.c === c)) return par;
+    }
+    return null;
+}
 
-    estado.pares.forEach(par => {
-        [ {p: par.a}, {p: par.b} ].forEach(item => {
-            if (Math.hypot(item.p.x - pos.x, item.p.y - pos.y) < 35) {
-                activePointerId = e.pointerId;
-                try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+function iniciarTraco(par, inicio) {
+    delete estado.trilhas[par.id];
+    estado.desenhando = {
+        parId: par.id,
+        cor: par.cor,
+        celulas: [inicio]
+    };
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (_) {} }
+    atualizarBotaoUndo();
+}
 
-                delete estado.trilhas[par.id];
-                estado.desenhando = { parId: par.id, cor: par.cor, pontos: [{ x: item.p.x, y: item.p.y }] };
-            }
-        });
-    });
-});
+function tentarAnexar(cell) {
+    const d = estado.desenhando;
+    if (!d) return false;
 
-canvas.addEventListener('pointermove', (e) => {
-    if (!estado.desenhando || e.pointerId !== activePointerId) return;
-    e.preventDefault();
-    const pos = obterCoordenadasCanvas(e);
+    const par = estado.pares.find(p => p.id === d.parId);
+    const inicio = d.celulas[0];
 
-    estado.desenhando.pontos.push({ x: pos.y ? pos.x : pos.x, y: pos.y });
-    desenharTabuleiro();
-});
+    // finalizar no extremo correto
+    const ehExtremo =
+        (cell.r === par.a.r && cell.c === par.a.c) ||
+        (cell.r === par.b.r && cell.c === par.b.c);
 
-canvas.addEventListener('pointerup', (e) => {
-    if (e.pointerId !== activePointerId) return;
-    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (ehExtremo) {
+        if (cell.r === inicio.r && cell.c === inicio.c) return false; // não é o mesmo
+        d.celulas.push(cell);
+        estado.trilhas[d.parId] = { cor: d.cor, celulas: [...d.celulas] };
+        estado.desenhando = null;
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+        atualizarBotaoUndo();
+        agendarDesenho();
+        verificarVitoria();
+        return true;
+    }
 
-    if (estado.desenhando) {
-        const pos = obterCoordenadasCanvas(e);
-        const par = estado.pares.find(p => p.id === estado.desenhando.parId);
-        const inicioTrilha = estado.desenhando.pontos[0];
-        const outroPonto = (Math.hypot(par.a.x - inicioTrilha.x, par.a.y - inicioTrilha.y) < 30) ? par.b : par.a;
+    // não passa por bola de outro par
+    if (buscarBolaEm(cell.r, cell.c)) return false;
 
-        if (Math.hypot(outroPonto.x - pos.x, outroPonto.y - pos.y) < 40) {
-            estado.trilhas[par.id] = { cor: par.cor, pontos: [...estado.desenhando.pontos] };
-            verificarVitoria();
+    d.celulas.push(cell);
+    agendarDesenho();
+    return false;
+}
+
+function adicionarPonto(pos) {
+    const d = estado.desenhando;
+    if (!d) return;
+
+    const cell = pxToCell(pos.x, pos.y);
+    const last = d.celulas[d.celulas.length - 1];
+
+    if (last.r === cell.r && last.c === cell.c) return;
+
+    // backtrack: voltou para a penúltima → remove última
+    if (d.celulas.length >= 2) {
+        const prev = d.celulas[d.celulas.length - 2];
+        if (prev.r === cell.r && prev.c === cell.c) {
+            d.celulas.pop();
+            agendarDesenho();
+            return;
         }
     }
 
-    activePointerId = null;
+    const dist = Math.abs(cell.r - last.r) + Math.abs(cell.c - last.c);
+
+    // movimento adjacente (1 célula): tenta anexar direto
+    if (dist === 1) {
+        tentarAnexar(cell);
+        return;
+    }
+
+    // movimento rápido: interpola ortogonalmente
+    if (dist > 1) {
+        let r = last.r, c = last.c;
+        while (r !== cell.r || c !== cell.c) {
+            if (r !== cell.r) r += Math.sign(cell.r - r);
+            else if (c !== cell.c) c += Math.sign(cell.c - c);
+            const finalizou = tentarAnexar({ r, c });
+            if (finalizou) return;
+        }
+    }
+}
+
+function finalizarTraco(pos) {
+    const d = estado.desenhando;
+    if (!d) return;
+
+    const par = estado.pares.find(p => p.id === d.parId);
+    const inicio = d.celulas[0];
+    const alvo = (inicio.r === par.a.r && inicio.c === par.a.c) ? par.b : par.a;
+
+    const cell = pxToCell(pos.x, pos.y);
+    const dist = Math.abs(cell.r - alvo.r) + Math.abs(cell.c - alvo.c);
+
+    if (dist <= 1) {
+        d.celulas.push(alvo);
+        estado.trilhas[d.parId] = { cor: d.cor, celulas: [...d.celulas] };
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+        verificarVitoria();
+    } else {
+        if (navigator.vibrate) { try { navigator.vibrate([10, 30, 10]); } catch (_) {} }
+    }
+
     estado.desenhando = null;
-    desenharTabuleiro();
-});
+    atualizarBotaoUndo();
+    agendarDesenho();
+}
+
+// ────────────────────────────────────────────────────────────────
+// LISTENERS DE PONTEIRO
+// ────────────────────────────────────────────────────────────────
+canvas.addEventListener('pointerdown', (e) => {
+    if (estado.concluido) return;
+    if (activePointerId !== null) return; // ignora segundo dedo
+    e.preventDefault();
+
+    const pos = obterCoordenadas(e);
+
+    // procura bola: primeiro por célula, senão por raio de snap
+    let par = null;
+    const cell = pxToCell(pos.x, pos.y);
+    par = buscarBolaEm(cell.r, cell.c);
+
+    if (!par) {
+        const c2 = cellToPx(cell.r, cell.c);
+        if (Math.hypot(c2.x - pos.x, c2.y - pos.y) < HIT_RADIUS) {
+            par = buscarBolaEm(cell.r, cell.c);
+        }
+    }
+    // fallback: varre bolas próximas dentro do SNAP_RADIUS
+    if (!par) {
+        for (const p of estado.pares) {
+            for (const ponto of [p.a, p.b]) {
+                const px = cellToPx(ponto.r, ponto.c);
+                if (Math.hypot(px.x - pos.x, px.y - pos.y) < SNAP_RADIUS) {
+                    par = p;
+                    break;
+                }
+            }
+            if (par) break;
+        }
+    }
+
+    if (!par) return;
+
+    activePointerId = e.pointerId;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+
+    // escolhe o extremo mais próximo do toque
+    const pa = cellToPx(par.a.r, par.a.c);
+    const pb = cellToPx(par.b.r, par.b.c);
+    const inicio = (Math.hypot(pa.x - pos.x, pa.y - pos.y) < Math.hypot(pb.x - pos.x, pb.y - pos.y)) ? par.a : par.b;
+
+    iniciarTraco(par, inicio);
+    agendarDesenho();
+}, { passive: false });
+
+canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== activePointerId || !estado.desenhando) return;
+    e.preventDefault();
+
+    const eventos = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of eventos) {
+        adicionarPonto(obterCoordenadas(ev));
+    }
+}, { passive: false });
+
+function encerrarPonteiro(e) {
+    if (e.pointerId !== activePointerId) return;
+    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (estado.desenhando) {
+        finalizarTraco(obterCoordenadas(e));
+    }
+    activePointerId = null;
+}
+
+canvas.addEventListener('pointerup', encerrarPonteiro);
 
 canvas.addEventListener('pointercancel', (e) => {
-    if (e.pointerId === activePointerId) {
-        try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-        activePointerId = null;
-        estado.desenhando = null;
-        desenharTabuleiro();
+    if (e.pointerId !== activePointerId) return;
+    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+
+    // tenta salvar progresso parcial (importante no mobile)
+    if (estado.desenhando) {
+        const pos = obterCoordenadas(e);
+        finalizarTraco(pos);
     }
+    activePointerId = null;
 });
 
+// ────────────────────────────────────────────────────────────────
+// VITÓRIA
+// ────────────────────────────────────────────────────────────────
 function verificarVitoria() {
     if (Object.keys(estado.trilhas).length === estado.pares.length) {
+        estado.concluido = true;
+        pararTimer();
+
         document.getElementById('iq-display').textContent = "IQ = 160 🎉";
         estado.pontos += estado.nivel * 50;
         document.getElementById('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+
+        if (navigator.vibrate) { try { navigator.vibrate([30, 50, 30]); } catch (_) {} }
+        mostrarToast(`🎉 Nível ${estado.nivel} completo! +${estado.nivel * 50} pts`);
+
+        // esconde botão desfazer
+        document.getElementById('btn-undo').disabled = true;
+
         salvarNoFirebase();
+        salvarLocal();
     }
+}
+
+// ────────────────────────────────────────────────────────────────
+// HISTÓRICO / DESFAZER
+// ────────────────────────────────────────────────────────────────
+function atualizarBotaoUndo() {
+    const btn = document.getElementById('btn-undo');
+    btn.disabled = Object.keys(estado.trilhas).length === 0 || estado.concluido;
+}
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+    const ids = Object.keys(estado.trilhas);
+    if (ids.length === 0) return;
+    // remove a última trilha concluída
+    const ultimo = ids[ids.length - 1];
+    delete estado.trilhas[ultimo];
+    estado.concluido = false;
+    atualizarBotaoUndo();
+    agendarDesenho();
+    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_) {} }
+});
+
+// ────────────────────────────────────────────────────────────────
+// TIMER
+// ────────────────────────────────────────────────────────────────
+function iniciarTimer() {
+    pararTimer();
+    estado.segundos = 0;
+    atualizarDisplayTempo();
+    estado.timer = setInterval(() => {
+        if (estado.concluido) return;
+        estado.segundos++;
+        atualizarDisplayTempo();
+    }, 1000);
+}
+
+function pararTimer() {
+    if (estado.timer) clearInterval(estado.timer);
+    estado.timer = null;
+}
+
+function atualizarDisplayTempo() {
+    const m = String(Math.floor(estado.segundos / 60)).padStart(2, '0');
+    const s = String(estado.segundos % 60).padStart(2, '0');
+    document.getElementById('timer-display').textContent = `${m}:${s}`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// PERSISTÊNCIA
+// ────────────────────────────────────────────────────────────────
+function salvarLocal() {
+    try {
+        localStorage.setItem('brain_hub_pontos', String(estado.pontos));
+    } catch (_) {}
 }
 
 async function salvarNoFirebase() {
     try {
         const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, { pontos: estado.pontos, ultimaAtividade: new Date().toISOString() });
-    } catch (_) {}
+        await update(refUser, {
+            pontos: estado.pontos,
+            ultimaAtividade: new Date().toISOString()
+        });
+    } catch (_) {
+        // offline: já salvamos localmente
+    }
 }
 
+// ────────────────────────────────────────────────────────────────
+// TOAST
+// ────────────────────────────────────────────────────────────────
+let toastTimeout = null;
+function mostrarToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ────────────────────────────────────────────────────────────────
+// CONTROLES
+// ────────────────────────────────────────────────────────────────
 document.getElementById('select-nivel').addEventListener('change', (e) => {
-    iniciarJogo(parseInt(e.target.value));
+    const novo = parseInt(e.target.value);
+    if (Object.keys(estado.trilhas).length > 0 && !estado.concluido) {
+        if (!confirm('Trocar de nível vai apagar o progresso. Continuar?')) {
+            e.target.value = estado.nivel;
+            return;
+        }
+    }
+    iniciarJogo(novo);
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {
     iniciarJogo(estado.nivel);
 });
+
+// ────────────────────────────────────────────────────────────────
+// BOOT
+// ────────────────────────────────────────────────────────────────
+// restaura pontos salvos localmente (fallback offline)
+try {
+    const pontosSalvos = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
+    if (!isNaN(pontosSalvos)) {
+        estado.pontos = pontosSalvos;
+        document.getElementById('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+    }
+} catch (_) {}
 
 iniciarJogo(5);
 </script>
