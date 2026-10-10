@@ -2,17 +2,21 @@ import { db } from "./firebase-config.js";
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { tocarSom } from "./audio.js";
 
-export const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+export const PALETA = [
+    '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', 
+    '#06b6d4', '#ec4899', '#84cc16', '#f43f5e', '#14b8a6',
+    '#8b5cf6', '#d97706', '#0284c7', '#16a34a', '#dc2626'
+];
 
 export const estado = {
-    nivel: 1, tamanho: 5, grid: [], pares: [], trilhas: {},
+    nivel: 1, tamanho: 16, grid: [], pares: [], trilhas: {},
     desenhando: null, pontos: 0, segundos: 0, timer: null, concluido: false,
     jogadorSessao: JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default', nome: 'Jogador', avatar: '🎮' }
 };
 
 export function iniciarPuzzle(nivel, boardElement, callbacks) {
     estado.nivel = nivel;
-    estado.tamanho = nivel + 4;
+    estado.tamanho = 16; // Tabuleiro profissional 16x16 fixo
     estado.trilhas = {};
     estado.concluido = false;
     estado.desenhando = null;
@@ -24,14 +28,9 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
 
     estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
     
-    // Pares fixos e bem distribuídos para garantir jogabilidade perfeita
-    estado.pares = [
-        { id: 0, cor: PALETA[0], a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
-        { id: 1, cor: PALETA[1], a: {r: 0, c: n-1}, b: {r: n-1, c: 0} }
-    ];
-    if (nivel >= 2) {
-        estado.pares.push({ id: 2, cor: PALETA[2], a: {r: Math.floor(n/2), c: 0}, b: {r: Math.floor(n/2), c: n-1} });
-    }
+    // Quantidade de pares com base no nível (máximo de 8 a 10 para um 16x16 desafiante)
+    const quantidadePares = Math.min(5 + nivel * 2, PALETA.length);
+    estado.pares = gerarParesAleatorios(n, quantidadePares);
 
     estado.pares.forEach(p => {
         estado.grid[p.a.r][p.a.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
@@ -52,6 +51,63 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
     iniciarTimer(callbacks.onAtualizarTempo);
 }
 
+// Algoritmo de distribuição aleatória com distância mínima e sem linha reta imediata
+function gerarParesAleatorios(tamanho, qtdPares) {
+    const pares = [];
+    const ocupados = [];
+
+    const distanciaMinimaEntreBolas = 3; // Garante espaçamento entre as esferas
+
+    for (let i = 0; i < qtdPares; i++) {
+        let a = null, b = null;
+        let tentativas = 0;
+
+        // Tentar posicionar a primeira bola (A) do par
+        while (!a && tentativas < 200) {
+            tentativas++;
+            const r = Math.floor(Math.random() * (tamanho - 4)) + 2;
+            const c = Math.floor(Math.random() * (tamanho - 4)) + 2;
+
+            const muitoPerto = ocupados.some(p => Math.abs(p.r - r) + Math.abs(p.c - c) < distanciaMinimaEntreBolas);
+            if (!muitoPerto) {
+                a = { r, c };
+                ocupados.push(a);
+            }
+        }
+
+        tentativas = 0;
+        // Tentar posicionar a segunda bola (B) evitando linha reta direta óbvia com a bola A
+        while (!b && tentativas < 200) {
+            tentativas++;
+            const r = Math.floor(Math.random() * (tamanho - 4)) + 2;
+            const c = Math.floor(Math.random() * (tamanho - 4)) + 2;
+
+            // Evitar mesma linha ou mesma coluna exata (linha reta direta)
+            const emLinhaReta = (a.r === r || a.c === c);
+            const muitoPerto = ocupados.some(p => Math.abs(p.r - r) + Math.abs(p.c - c) < distanciaMinimaEntreBolas);
+
+            if (!muitoPerto && !emLinhaReta) {
+                b = { r, c };
+                ocupados.push(b);
+            }
+        }
+
+        // Fallback caso o grid esteja muito cheio
+        if (!a || !b) {
+            a = { r: i, c: 1 };
+            b = { r: i, c: tamanho - 2 };
+        }
+
+        pares.push({
+            id: i,
+            cor: PALETA[i % PALETA.length],
+            a, b
+        });
+    }
+
+    return pares;
+}
+
 export function atualizarVisualDom() {
     const n = estado.tamanho;
     for (let r = 0; r < n; r++) {
@@ -63,7 +119,6 @@ export function atualizarVisualDom() {
             const dado = estado.grid[r][c];
 
             if (dado.tipo === 'endpoint') {
-                const par = estado.pares.find(p => p.id === dado.parId);
                 const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
                 cell.innerHTML = `<div class="endpoint${conectado}" style="background:${dado.cor}"></div>`;
             } else if (dado.tipo === 'trilha') {
@@ -146,7 +201,7 @@ function verificarVitoria(callbacks) {
 async function salvarProgressoNoFirebase() {
     try {
         const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, { pontos: 150, ultimaAtividade: new Date().toISOString() });
+        await update(refUser, { pontos: 300, ultimaAtividade: new Date().toISOString() });
     } catch (err) {
         console.warn("Modo offline ou erro ao salvar:", err);
     }
