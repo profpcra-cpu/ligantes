@@ -24,11 +24,9 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
 
     estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
     
-    // Geração dinâmica de pares baseada no nível atual
     const quantidadePares = Math.min(nivel + 2, PALETA.length);
     estado.pares = [];
     
-    // Posicionamento inteligente para evitar sobreposições iniciais
     const posicoesIniciais = [
         { a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
         { a: {r: 0, c: n-1}, b: {r: n-1, c: 0} },
@@ -96,7 +94,6 @@ export function lidarComMovimento(r, c, callbacks) {
     if (ultima.r === r && ultima.c === c) return;
     if (Math.abs(r - ultima.r) + Math.abs(c - ultima.c) !== 1) return;
 
-    // Permitir recuar o traço ao arrastar de volta para o ponto anterior
     if (trail.length >= 2) {
         const penultima = trail[trail.length - 2];
         if (penultima.r === r && penultima.c === c) {
@@ -111,7 +108,6 @@ export function lidarComMovimento(r, c, callbacks) {
 
     const alvo = estado.grid[r][c];
 
-    // Se bater no endpoint correto, completa o par
     if (alvo.tipo === 'endpoint' && alvo.parId === estado.desenhando.parId) {
         trail.push({ r, c });
         estado.trilhas[estado.desenhando.parId] = { pontos: [...trail] };
@@ -122,10 +118,8 @@ export function lidarComMovimento(r, c, callbacks) {
         return;
     }
 
-    // Se bater em outro endpoint ou célula bloqueada, ignora
     if (alvo.tipo === 'endpoint') return;
 
-    // Se cruzar por uma trilha existente, limpa a trilha antiga para permitir novas rotas
     if (alvo.tipo === 'trilha' && alvo.parId !== estado.desenhando.parId) {
         if (estado.trilhas[alvo.parId]) {
             limparTrilha(estado.trilhas[alvo.parId]);
