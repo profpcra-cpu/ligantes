@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Brain Curves — Brain Hub</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg-color: #0b1020;
+    --bg-gradient-1: #1e1b4b;
+    --bg-gradient-2: #0b1020;
+    --card-bg: rgba(30, 41, 59, 0.72);
+    --card-border: rgba(148, 163, 184, 0.15);
+    --card-glow: rgba(99, 102, 241, 0.25);
+    --text-color: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: rgba(148, 163, 184, 0.18);
+    --border-strong: rgba(148, 163, 184, 0.35);
+    --input-bg: rgba(15, 23, 42, 0.7);
+    --btn-primary: #6366f1;
+    --btn-accent: #8b5cf6;
+    --c-green: #4ade80;
+    --c-blue: #38bdf8;
+    --c-amber: #f59e0b;
+    --c-star: #fbbf24;
+    --board-bg: rgba(15, 23, 42, 0.55);
+    --cell-empty: rgba(30, 41, 59, 0.55);
+    --cell-empty-rest: rgba(239, 68, 68, 0.15);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --shadow-card: 0 20px 60px -20px rgba(0, 0, 0, 0.65);
+    --shadow-btn: 0 6px 20px -6px rgba(99, 102, 241, 0.55);
+}
+
+[data-theme="light"] {
+    --bg-color: #eef2ff;
+    --bg-gradient-1: #e0e7ff;
+    --bg-gradient-2: #f8fafc;
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(15, 23, 42, 0.08);
+    --card-glow: rgba(99, 102, 241, 0.15);
+    --text-color: #0f172a;
+    --text-muted: #475569;
+    --border-color: rgba(15, 23, 42, 0.1);
+    --border-strong: rgba(15, 23, 42, 0.25);
+    --input-bg: rgba(255, 255, 255, 0.95);
+    --board-bg: rgba(248, 250, 252, 0.95);
+    --cell-empty: rgba(226, 232, 240, 0.7);
+    --shadow-card: 0 20px 60px -20px rgba(30, 41, 59, 0.28);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: radial-gradient(circle at 20% 0%, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 55%);
+    background-attachment: fixed;
+    color: var(--text-color);
+    margin: 0;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+}
+
+.container {
+    position: relative;
+    background: var(--card-bg);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card), 0 0 0 1px var(--card-border) inset;
+    width: 100%;
+    max-width: 520px;
+    text-align: center;
+    border: 1px solid var(--card-border);
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    text-decoration: none;
+}
+.btn-small:hover { color: var(--text-color); border-color: var(--border-strong); }
+
+.user-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    background: var(--input-bg);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+.user-info-left { display: flex; align-items: center; gap: 10px; }
+.user-avatar-display {
+    width: 38px; height: 38px; font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2));
+    border: 1px solid rgba(99, 102, 241, 0.4);
+}
+#display-nome { font-size: 14px; font-weight: 700; }
+.game-name {
+    font-size: 12.5px; color: var(--text-muted); font-weight: 600;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.score-board {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 6px; background: var(--input-bg); padding: 10px;
+    border-radius: var(--radius-md); margin-bottom: 12px;
+    font-size: 10px; border: 1px solid var(--border-color);
+    color: var(--text-muted); text-transform: uppercase; font-weight: 600;
+}
+.score-board > div {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 2px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02);
+}
+.score-board strong {
+    font-size: 14px; font-family: 'JetBrains Mono', monospace; font-weight: 700; text-transform: none;
+}
+#display-nivel  { color: var(--c-blue); }
+#display-pontos { color: var(--c-green); }
+#display-tempo  { color: #60a5fa; }
+#display-pares  { color: var(--c-amber); }
+#display-estrelas { color: var(--c-star); }
+
+.instructions {
+    font-size: 12.5px; color: var(--text-muted); margin: 4px 0 12px; line-height: 1.5; min-height: 36px;
+}
+
+.board-wrapper {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 420px;
+    margin: 0 auto 12px; border-radius: 14px; overflow: hidden;
+    background: var(--board-bg);
+    border: 2px solid rgba(99, 102, 241, 0.35);
+    box-shadow: 0 12px 40px -14px rgba(0, 0, 0, 0.55), 0 0 24px -6px rgba(99, 102, 241, 0.35);
+    touch-action: none; user-select: none;
+}
+
+#game-board {
+    position: absolute; inset: 0; display: grid; gap: 2px; padding: 6px;
+}
+
+.cell {
+    background: var(--cell-empty); border-radius: 4px; position: relative;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.cell.error { animation: shake 0.3s ease; box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+.endpoint {
+    width: 68%; height: 68%; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; color: #fff;
+    box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.35), 0 3px 6px rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.75); z-index: 3; pointer-events: none;
+}
+.endpoint.connected { box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(255, 255, 255, 0.55), 0 0 20px rgba(255, 255, 255, 0.6); }
+
+.cell.trail { background: var(--trail-color, transparent); }
+.cell.trail::after {
+    content: ""; position: absolute; inset: 34%; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+select {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border-color);
+    border-radius: var(--radius-md); font-size: 14px; font-family: inherit; font-weight: 600;
+    background: var(--input-bg); color: var(--text-color); cursor: pointer;
+}
+button.action {
+    width: 100%; padding: 12px 14px; border: none; border-radius: var(--radius-md);
+    font-family: inherit; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, var(--btn-primary), var(--btn-accent));
+    box-shadow: var(--shadow-btn);
+}
+button.action:hover { filter: brightness(1.08); }
+button.secondary { background: linear-gradient(135deg, #475569, #334155); }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="top-bar">
+        <a href="#" class="btn-small" id="btn-voltar">⬅ Voltar</a>
+        <button id="theme-toggle" class="btn-small">🌙 Tema</button>
+    </div>
+
+    <div class="user-header">
+        <div class="user-info-left">
+            <span id="display-avatar" class="user-avatar-display">👤</span>
+            <strong id="display-nome">Jogador</strong>
+        </div>
+        <span class="game-name">Brain Curves</span>
+    </div>
+
+    <div class="score-board">
+        <div>Nível<br><strong id="display-nivel">1</strong></div>
+        <div>Pontos<br><strong id="display-pontos">0</strong></div>
+        <div>Tempo<br><strong id="display-tempo">00:00</strong></div>
+        <div>Pares<br><strong id="display-pares">0/3</strong></div>
+        <div>⭐<br><strong id="display-estrelas">0</strong></div>
+    </div>
+
+    <p class="instructions" id="info-instrucao">Arraste para ligar os pares correspondentes.</p>
+
+    <div class="board-wrapper">
+        <div id="game-board"></div>
+    </div>
+
+    <div class="controls-grid">
+        <select id="select-nivel">
+            <option value="1" selected>Nível 1 (5×5)</option>
+            <option value="2">Nível 2 (6×6)</option>
+            <option value="3">Nível 3 (7×7)</option>
+        </select>
+        <button id="btn-reset" class="action secondary">🔄 Reiniciar</button>
+    </div>
+</div>
+
+<script type="module">
+import { db } from "./firebase-config.js";
+import { ref, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+// Exemplo de sessão simulada caso acesse direto sem login prévio
+let jogadorSessao = JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default', nome: 'Convidado', avatar: '🎮' };
+document.getElementById('display-nome').textContent = jogadorSessao.nome;
+document.getElementById('display-avatar').textContent = jogadorSessao.avatar;
+
+const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4'];
+
+const estado = {
+    nivel: 1, tamanho: 5, grid: [], pares: [], trilhas: {},
+    desenhando: null, estrelas: 0, pontos: 0, segundos: 0, timer: null, concluido: false
+};
+
+const board = document.getElementById('game-board');
+const displayNivel = document.getElementById('display-nivel');
+const displayPontos = document.getElementById('display-pontos');
+const displayTempo = document.getElementById('display-tempo');
+const displayPares = document.getElementById('display-pares');
+const displayEstrelas = document.getElementById('display-estrelas');
+const infoInstrucao = document.getElementById('info-instrucao');
+const selectNivel = document.getElementById('select-nivel');
+const btnReset = document.getElementById('btn-reset');
+const themeToggle = document.getElementById('theme-toggle');
+
+function iniciarPuzzle(nivel) {
+    estado.nivel = nivel;
+    estado.tamanho = nivel + 4;
+    estado.trilhas = {};
+    estado.concluido = false;
+    
+    const n = estado.tamanho;
+    board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    board.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+    board.innerHTML = '';
+
+    estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
+    
+    // Criando 2 pares fixos de exemplo funcionais por nível
+    estado.pares = [
+        { id: 0, cor: PALETA[0], a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
+        { id: 1, cor: PALETA[1], a: {r: 0, c: n-1}, b: {r: n-1, c: 0} }
+    ];
+
+    estado.pares.forEach(p => {
+        estado.grid[p.a.r][p.a.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
+        estado.grid[p.b.r][p.b.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
+    });
+
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.r = r; cell.dataset.c = c;
+            cell.id = `cell-${r}-${c}`;
+            board.appendChild(cell);
+        }
+    }
+
+    displayNivel.textContent = nivel;
+    atualizarVisual();
+    iniciarTimer();
+}
+
+function atualizarVisual() {
+    const n = estado.tamanho;
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            const cell = document.getElementById(`cell-${r}-${c}`);
+            if (!cell) continue;
+            cell.className = 'cell';
+            cell.style.removeProperty('--trail-color');
+            const dado = estado.grid[r][c];
+
+            if (dado.tipo === 'endpoint') {
+                const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
+                cell.innerHTML = `<div class="endpoint${conectado}" style="background:${dado.cor}"></div>`;
+            } else if (dado.tipo === 'trilha') {
+                cell.classList.add('trail');
+                cell.style.setProperty('--trail-color', dado.cor);
+                cell.innerHTML = '';
+            } else {
+                cell.innerHTML = '';
+            }
+        }
+    }
+    displayPares.textContent = `${Object.keys(estado.trilhas).length}/${estado.pares.length}`;
+}
+
+let activePointerId = null;
+board.addEventListener('pointerdown', (e) => {
+    if (estado.concluido) return;
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+    const dado = estado.grid[r][c];
+
+    if (dado.tipo === 'endpoint') {
+        e.preventDefault();
+        activePointerId = e.pointerId;
+        try { board.setPointerCapture(e.pointerId); } catch (_) {}
+
+        if (estado.trilhas[dado.parId]) {
+            limparTrilha(estado.trilhas[dado.parId]);
+            delete estado.trilhas[dado.parId];
+        }
+        estado.desenhando = { parId: dado.parId, cor: dado.cor, pontos: [{ r, c }] };
+        atualizarVisual();
+    }
+});
+
+board.addEventListener('pointermove', (e) => {
+    if (!estado.desenhando || e.pointerId !== activePointerId) return;
+    e.preventDefault();
+    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cell');
+    if (!cell) return;
+    const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+    
+    const trail = estado.desenhando.pontos;
+    const ultima = trail[trail.length - 1];
+    if (ultima.r === r && ultima.c === c) return;
+    if (Math.abs(r - ultima.r) + Math.abs(c - ultima.c) !== 1) return;
+
+    const alvo = estado.grid[r][c];
+    if (alvo.tipo === 'endpoint' && alvo.parId === estado.desenhando.parId) {
+        trail.push({ r, c });
+        estado.trilhas[estado.desenhando.parId] = { pontos: [...trail] };
+        estado.desenhando = null;
+        atualizarVisual();
+        verificarVitoria();
+        return;
+    }
+    if (alvo.tipo === 'vazio') {
+        trail.push({ r, c });
+        estado.grid[r][c] = { cor: estado.desenhando.cor, parId: estado.desenhando.parId, tipo: 'trilha' };
+        atualizarVisual();
+    }
+});
+
+function limparTrilha(trilhaObj) {
+    if (!trilhaObj) return;
+    trilhaObj.pontos.forEach(p => {
+        if (estado.grid[p.r][p.c].tipo === 'trilha') {
+            estado.grid[p.r][p.c] = { cor: null, parId: null, tipo: 'vazio' };
+        }
+    });
+}
+
+function verificarVitoria() {
+    if (Object.keys(estado.trilhas).length === estado.pares.length) {
+        estado.concluido = true;
+        clearInterval(estado.timer);
+        infoInstrucao.innerHTML = "🎉 <b>Parabéns! Nível concluído com sucesso!</b>";
+        salvarProgressoNoFirebase();
+    }
+}
+
+async function salvarProgressoNoFirebase() {
+    try {
+        const refUser = ref(db, 'jogadores/' + jogadorSessao.chave);
+        await update(refUser, { pontos: 150, ultimaAtividade: new Date().toISOString() });
+    } catch (err) {
+        console.warn("Erro ao salvar no Firebase:", err);
+    }
+}
+
+function iniciarTimer() {
+    clearInterval(estado.timer);
+    estado.segundos = 0;
+    estado.timer = setInterval(() => {
+        estado.segundos++;
+        const m = String(Math.floor(estado.segundos / 60)).padStart(2, '0');
+        const s = String(estado.segundos % 60).padStart(2, '0');
+        displayTempo.textContent = `${m}:${s}`;
+    }, 1000);
+}
+
+selectNivel.addEventListener('change', (e) => iniciarPuzzle(parseInt(e.target.value)));
+btnReset.addEventListener('click', () => iniciarPuzzle(estado.nivel));
+
+themeToggle.addEventListener('click', () => {
+    const atual = document.documentElement.getAttribute('data-theme');
+    const proximo = atual === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', proximo);
+    themeToggle.textContent = proximo === 'dark' ? '🌙 Tema' : '☀️ Tema';
+});
+
+iniciarPuzzle(1);
+</script>
+</body>
+</html>
