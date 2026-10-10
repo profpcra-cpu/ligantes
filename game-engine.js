@@ -24,24 +24,13 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
 
     estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
     
-    const quantidadePares = Math.min(nivel + 2, PALETA.length);
-    estado.pares = [];
-    
-    const posicoesIniciais = [
-        { a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
-        { a: {r: 0, c: n-1}, b: {r: n-1, c: 0} },
-        { a: {r: Math.floor(n/2), c: 0}, b: {r: Math.floor(n/2), c: n-1} },
-        { a: {r: 0, c: Math.floor(n/2)}, b: {r: n-1, c: Math.floor(n/2)} }
+    // Pares fixos e bem distribuídos para garantir jogabilidade perfeita
+    estado.pares = [
+        { id: 0, cor: PALETA[0], a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
+        { id: 1, cor: PALETA[1], a: {r: 0, c: n-1}, b: {r: n-1, c: 0} }
     ];
-
-    for (let i = 0; i < quantidadePares; i++) {
-        const pos = posicoesIniciais[i % posicoesIniciais.length];
-        estado.pares.push({
-            id: i,
-            cor: PALETA[i],
-            a: { ...pos.a },
-            b: { ...pos.b }
-        });
+    if (nivel >= 2) {
+        estado.pares.push({ id: 2, cor: PALETA[2], a: {r: Math.floor(n/2), c: 0}, b: {r: Math.floor(n/2), c: n-1} });
     }
 
     estado.pares.forEach(p => {
@@ -74,6 +63,7 @@ export function atualizarVisualDom() {
             const dado = estado.grid[r][c];
 
             if (dado.tipo === 'endpoint') {
+                const par = estado.pares.find(p => p.id === dado.parId);
                 const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
                 cell.innerHTML = `<div class="endpoint${conectado}" style="background:${dado.cor}"></div>`;
             } else if (dado.tipo === 'trilha') {
