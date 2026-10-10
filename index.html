@@ -182,7 +182,6 @@ body {
     transition: background-color 0.08s ease;
 }
 
-/* grade sutil */
 .cell::before {
     content: '';
     position: absolute;
@@ -197,7 +196,6 @@ body {
     box-shadow: inset 0 0 0 1px var(--grid-line);
 }
 
-/* trilha (fundo colorido da célula) */
 .cell.trail::before {
     background: var(--trail-color, #cbd5e1);
     opacity: 0.92;
@@ -205,7 +203,6 @@ body {
     border-radius: 6px;
 }
 
-/* endpoint (bola) */
 .endpoint {
     position: relative;
     z-index: 2;
@@ -364,7 +361,6 @@ select {
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
-/* ── RESPONSIVO ────────────────────────── */
 @media (max-height: 700px) {
     .container { padding: 16px; border-radius: 26px; }
     .iq-badge { font-size: 22px; }
@@ -465,48 +461,150 @@ const estado = {
 const $ = (id) => document.getElementById(id);
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO DE PARES
+// GERAÇÃO INTELIGENTE DE PARES (Dispersão Máxima + Validação)
 // ────────────────────────────────────────────────────────────────
+function distanciaManhattan(p1, p2) {
+    return Math.abs(p1.r - p2.r) + Math.abs(p1.c - p2.c);
+}
+
+function validarSolvabilidade(tamanho, pares) {
+    const gridTemp = Array.from({ length: tamanho }, () => Array(tamanho).fill(null));
+    pares.forEach(p => {
+        gridTemp[p.a.r][p.a.c] = { tipo: 'endpoint', parId: p.id };
+        gridTemp[p.b.r][p.b.c] = { tipo: 'endpoint', parId: p.id };
+    });
+
+    for (const par of pares) {
+        const fila = [{ r: par.a.r, c: par.a.c }];
+        const visitados = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
+        visitados[par.a.r][par.a.c] = true;
+        let caminhoEncontrado = false;
+
+        while (fila.length > 0) {
+            const atual = fila.shift();
+
+            if (atual.r === par.b.r && atual.c === par.b.c) {
+                caminhoEncontrado = true;
+                break;
+            }
+
+            const direcoes = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
+            for (const d of direcoes) {
+                const nr = atual.r + d.r;
+                const nc = atual.c + d.c;
+
+                if (nr >= 0 && nr < tamanho && nc >= 0 && nc < tamanho && !visitados[nr][nc]) {
+                    const celulaOcupada = gridTemp[nr][nc];
+                    if (celulaOcupada === null || (nr === par.b.r && nc === par.b.c)) {
+                        visitados[nr][nc] = true;
+                        fila.push({ r: nr, c: nc });
+                    }
+                }
+            }
+        }
+
+        if (!caminhoEncontrado) return false;
+    }
+
+    return true;
+}
+
 function gerarPares(tamanho, qtdPares) {
-    const pares = [];
-    const ocupados = [];
-    const distMin = Math.max(3, Math.floor(tamanho / 3));
+    let melhorPares = [];
+    let maxDistanciaGlobal = -1;
     const margem = 1;
     const limite = tamanho - margem;
+    const tentativasMaximas = 100;
 
-    for (let i = 0; i < qtdPares; i++) {
-        let a = null, b = null, t = 0;
+    for (let t = 0; t < tentativasMaximas; t++) {
+        const paresCandidatos = [];
+        const ocupados = [];
+        let distanciaAcumuladaTentativa = 0;
 
-        while (!a && t < 300) {
-            t++;
-            const r = margem + Math.floor(Math.random() * (limite - margem));
-            const c = margem + Math.floor(Math.random() * (limite - margem));
-            if (!ocupados.some(p => Math.abs(p.r - r) + Math.abs(p.c - c) < distMin)) {
-                a = { r, c };
+        for (let i = 0; i < qtdPares; i++) {
+            let a = null, b = null;
+
+            if (i === 0) {
+                a = { r: margem, c: margem };
+                b = { r: limite - 1, c: limite - 1 };
+            } else {
+                let melhorA = null;
+                let maiorDistMinima = -1;
+
+                for (let tent = 0; tent < 30; tent++) {
+                    const candR = margem + Math.floor(Math.random() * (limite - margem));
+                    const candC = margem + Math.floor(Math.random() * (limite - margem));
+
+                    if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
+
+                    let menorDist = Infinity;
+                    for (const occ of ocupados) {
+                        const dist = distanciaManhattan(occ, { r: candR, c: candC });
+                        if (dist < menorDist) menorDist = dist;
+                    }
+
+                    if (menorDist > maiorDistMinima) {
+                        maiorDistMinima = menorDist;
+                        melhorA = { r: candR, c: candC };
+                    }
+                }
+
+                a = melhorA || { r: margem, c: Math.floor(tamanho / 2) };
                 ocupados.push(a);
+
+                let maiorDistB = -1;
+                let melhorBLocal = null;
+                for (let tent = 0; tent < 30; tent++) {
+                    const candR = margem + Math.floor(Math.random() * (limite - margem));
+                    const candC = margem + Math.floor(Math.random() * (limite - margem));
+
+                    if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
+                    if (a.r === candR || a.c === candC) continue;
+
+                    const distA = distanciaManhattan(a, { r: candR, c: candC });
+                    if (distA > maiorDistB) {
+                        maiorDistB = distA;
+                        melhorBLocal = { r: candR, c: candC };
+                    }
+                }
+
+                b = melhorBLocal || { r: limite - 1, c: margem };
+            }
+
+            ocupados.push(a);
+            ocupados.push(b);
+            distanciaAcumuladaTentativa += distanciaManhattan(a, b);
+
+            const p = PALETA[i % PALETA.length];
+            paresCandidatos.push({ id: i, cor: p.cor, simbolo: p.simbolo, a, b });
+        }
+
+        if (validarSolvabilidade(tamanho, paresCandidatos)) {
+            if (distanciaAcumuladaTentativa > maxDistanciaGlobal) {
+                maxDistanciaGlobal = distanciaAcumuladaTentativa;
+                melhorPares = paresCandidatos;
             }
         }
+    }
 
-        t = 0;
-        while (!b && t < 300) {
-            t++;
-            const r = margem + Math.floor(Math.random() * (limite - margem));
-            const c = margem + Math.floor(Math.random() * (limite - margem));
-            const mesmaLinha = a && (a.r === r || a.c === c);
-            const muitoPerto = ocupados.some(p => Math.abs(p.r - r) + Math.abs(p.c - c) < distMin);
-            if (!muitoPerto && !mesmaLinha) {
-                b = { r, c };
-                ocupados.push(b);
-            }
-        }
+    if (melhorPares.length === 0) {
+        return gerarParesFallbackSimples(tamanho, qtdPares);
+    }
 
-        if (!a || !b) {
-            a = { r: margem + (i % (limite - margem - 1)), c: margem };
-            b = { r: margem + (i % (limite - margem - 1)), c: limite - 1 };
-        }
+    return melhorPares;
+}
 
+function gerarParesFallbackSimples(tamanho, qtdPares) {
+    const pares = [];
+    for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a, b });
+        pares.push({
+            id: i,
+            cor: p.cor,
+            simbolo: p.simbolo,
+            a: { r: 1 + i, c: 1 },
+            b: { r: 1 + i, c: tamanho - 2 }
+        });
     }
     return pares;
 }
