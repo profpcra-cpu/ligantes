@@ -16,7 +16,7 @@ export const estado = {
 
 export function iniciarPuzzle(nivel, boardElement, callbacks) {
     estado.nivel = nivel;
-    estado.tamanho = 16; // Tabuleiro profissional 16x16 fixo
+    estado.tamanho = 16; // Tabuleiro 16x16 profissional
     estado.trilhas = {};
     estado.concluido = false;
     estado.desenhando = null;
@@ -28,8 +28,8 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
 
     estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
     
-    // Quantidade de pares com base no nível (máximo de 8 a 10 para um 16x16 desafiante)
-    const quantidadePares = Math.min(5 + nivel * 2, PALETA.length);
+    // O nível corresponde exatamente à quantidade de pares de bolas
+    const quantidadePares = Math.min(nivel, PALETA.length);
     estado.pares = gerarParesAleatorios(n, quantidadePares);
 
     estado.pares.forEach(p => {
@@ -51,18 +51,15 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
     iniciarTimer(callbacks.onAtualizarTempo);
 }
 
-// Algoritmo de distribuição aleatória com distância mínima e sem linha reta imediata
 function gerarParesAleatorios(tamanho, qtdPares) {
     const pares = [];
     const ocupados = [];
-
-    const distanciaMinimaEntreBolas = 3; // Garante espaçamento entre as esferas
+    const distanciaMinimaEntreBolas = 4;
 
     for (let i = 0; i < qtdPares; i++) {
         let a = null, b = null;
         let tentativas = 0;
 
-        // Tentar posicionar a primeira bola (A) do par
         while (!a && tentativas < 200) {
             tentativas++;
             const r = Math.floor(Math.random() * (tamanho - 4)) + 2;
@@ -76,13 +73,11 @@ function gerarParesAleatorios(tamanho, qtdPares) {
         }
 
         tentativas = 0;
-        // Tentar posicionar a segunda bola (B) evitando linha reta direta óbvia com a bola A
         while (!b && tentativas < 200) {
             tentativas++;
             const r = Math.floor(Math.random() * (tamanho - 4)) + 2;
             const c = Math.floor(Math.random() * (tamanho - 4)) + 2;
 
-            // Evitar mesma linha ou mesma coluna exata (linha reta direta)
             const emLinhaReta = (a.r === r || a.c === c);
             const muitoPerto = ocupados.some(p => Math.abs(p.r - r) + Math.abs(p.c - c) < distanciaMinimaEntreBolas);
 
@@ -92,10 +87,9 @@ function gerarParesAleatorios(tamanho, qtdPares) {
             }
         }
 
-        // Fallback caso o grid esteja muito cheio
         if (!a || !b) {
-            a = { r: i, c: 1 };
-            b = { r: i, c: tamanho - 2 };
+            a = { r: i, c: 2 };
+            b = { r: i, c: tamanho - 3 };
         }
 
         pares.push({
@@ -201,7 +195,7 @@ function verificarVitoria(callbacks) {
 async function salvarProgressoNoFirebase() {
     try {
         const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, { pontos: 300, ultimaAtividade: new Date().toISOString() });
+        await update(refUser, { pontos: estado.nivel * 100, ultimaAtividade: new Date().toISOString() });
     } catch (err) {
         console.warn("Modo offline ou erro ao salvar:", err);
     }
