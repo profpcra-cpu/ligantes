@@ -2,7 +2,7 @@ import { db } from "./firebase-config.js";
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { tocarSom } from "./audio.js";
 
-export const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4'];
+export const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
 
 export const estado = {
     nivel: 1, tamanho: 5, grid: [], pares: [], trilhas: {},
@@ -15,6 +15,7 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
     estado.tamanho = nivel + 4;
     estado.trilhas = {};
     estado.concluido = false;
+    estado.desenhando = null;
     
     const n = estado.tamanho;
     boardElement.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
@@ -23,10 +24,27 @@ export function iniciarPuzzle(nivel, boardElement, callbacks) {
 
     estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
     
-    estado.pares = [
-        { id: 0, cor: PALETA[0], a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
-        { id: 1, cor: PALETA[1], a: {r: 0, c: n-1}, b: {r: n-1, c: 0} }
+    // Geração dinâmica de pares baseada no nível atual
+    const quantidadePares = Math.min(nivel + 2, PALETA.length);
+    estado.pares = [];
+    
+    // Posicionamento inteligente para evitar sobreposições iniciais
+    const posicoesIniciais = [
+        { a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
+        { a: {r: 0, c: n-1}, b: {r: n-1, c: 0} },
+        { a: {r: Math.floor(n/2), c: 0}, b: {r: Math.floor(n/2), c: n-1} },
+        { a: {r: 0, c: Math.floor(n/2)}, b: {r: n-1, c: Math.floor(n/2)} }
     ];
+
+    for (let i = 0; i < quantidadePares; i++) {
+        const pos = posicoesIniciais[i % posicoesIniciais.length];
+        estado.pares.push({
+            id: i,
+            cor: PALETA[i],
+            a: { ...pos.a },
+            b: { ...pos.b }
+        });
+    }
 
     estado.pares.forEach(p => {
         estado.grid[p.a.r][p.a.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
@@ -78,7 +96,22 @@ export function lidarComMovimento(r, c, callbacks) {
     if (ultima.r === r && ultima.c === c) return;
     if (Math.abs(r - ultima.r) + Math.abs(c - ultima.c) !== 1) return;
 
+    // Permitir recuar o traço ao arrastar de volta para o ponto anterior
+    if (trail.length >= 2) {
+        const penultima = trail[trail.length - 2];
+        if (penultima.r === r && penultima.c === c) {
+            const removido = trail.pop();
+            if (estado.grid[removido.r][removido.c].tipo === 'trilha') {
+                estado.grid[removido.r][removido.c] = { cor: null, parId: null, tipo: 'vazio' };
+            }
+            callbacks.onAtualizarVisual();
+            return;
+        }
+    }
+
     const alvo = estado.grid[r][c];
+
+    // Se bater no endpoint correto, completa o par
     if (alvo.tipo === 'endpoint' && alvo.parId === estado.desenhando.parId) {
         trail.push({ r, c });
         estado.trilhas[estado.desenhando.parId] = { pontos: [...trail] };
@@ -88,7 +121,19 @@ export function lidarComMovimento(r, c, callbacks) {
         verificarVitoria(callbacks);
         return;
     }
-    if (alvo.tipo === 'vazio') {
+
+    // Se bater em outro endpoint ou célula bloqueada, ignora
+    if (alvo.tipo === 'endpoint') return;
+
+    // Se cruzar por uma trilha existente, limpa a trilha antiga para permitir novas rotas
+    if (alvo.tipo === 'trilha' && alvo.parId !== estado.desenhando.parId) {
+        if (estado.trilhas[alvo.parId]) {
+            limparTrilha(estado.trilhas[alvo.parId]);
+            delete estado.trilhas[alvo.parId];
+        }
+    }
+
+    if (alvo.tipo === 'vazio' || alvo.tipo === 'trilha') {
         trail.push({ r, c });
         estado.grid[r][c] = { cor: estado.desenhando.cor, parId: estado.desenhando.parId, tipo: 'trilha' };
         callbacks.onAtualizarVisual();
