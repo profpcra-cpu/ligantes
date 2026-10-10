@@ -1,63 +1,27 @@
 <!DOCTYPE html>
-<html lang="pt-PT" data-theme="dark">
+<html lang="pt" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Brain Curves — Brain Hub</title>
-
+<title>Brain Curves — IQ Challenge</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg-color: #0b1020;
-    --bg-gradient-1: #1e1b4b;
-    --bg-gradient-2: #0b1020;
-    --card-bg: rgba(30, 41, 59, 0.72);
-    --card-border: rgba(148, 163, 184, 0.15);
-    --card-glow: rgba(99, 102, 241, 0.25);
-    --text-color: #f8fafc;
-    --text-muted: #94a3b8;
-    --border-color: rgba(148, 163, 184, 0.18);
-    --border-strong: rgba(148, 163, 184, 0.35);
-    --input-bg: rgba(15, 23, 42, 0.7);
-    --btn-primary: #6366f1;
-    --btn-accent: #8b5cf6;
-    --c-green: #4ade80;
-    --c-blue: #38bdf8;
-    --c-amber: #f59e0b;
-    --c-star: #fbbf24;
-    --board-bg: rgba(15, 23, 42, 0.55);
-    --cell-empty: rgba(30, 41, 59, 0.55);
-    --cell-empty-rest: rgba(239, 68, 68, 0.15);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
-    --shadow-card: 0 20px 60px -20px rgba(0, 0, 0, 0.65);
-    --shadow-btn: 0 6px 20px -6px rgba(99, 102, 241, 0.55);
-}
-
-[data-theme="light"] {
-    --bg-color: #eef2ff;
     --bg-gradient-1: #e0e7ff;
     --bg-gradient-2: #f8fafc;
-    --card-bg: rgba(255, 255, 255, 0.9);
+    --card-bg: #ffffff;
     --card-border: rgba(15, 23, 42, 0.08);
-    --card-glow: rgba(99, 102, 241, 0.15);
     --text-color: #0f172a;
-    --text-muted: #475569;
-    --border-color: rgba(15, 23, 42, 0.1);
-    --border-strong: rgba(15, 23, 42, 0.25);
-    --input-bg: rgba(255, 255, 255, 0.95);
-    --board-bg: rgba(248, 250, 252, 0.95);
-    --cell-empty: rgba(226, 232, 240, 0.7);
-    --shadow-card: 0 20px 60px -20px rgba(30, 41, 59, 0.28);
+    --text-muted: #64748b;
+    --btn-primary: #6366f1;
+    --c-blue: #38bdf8;
+    --c-green: #4ade80;
+    --c-red: #ef4444;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html, body { height: 100%; }
-
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background: radial-gradient(circle at 20% 0%, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 55%);
@@ -69,541 +33,254 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
     touch-action: manipulation;
 }
 
 .container {
-    position: relative;
     background: var(--card-bg);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    padding: 20px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card), 0 0 0 1px var(--card-border) inset;
+    padding: 24px;
+    border-radius: 36px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
     width: 100%;
-    max-width: 520px;
+    max-width: 440px;
     text-align: center;
     border: 1px solid var(--card-border);
 }
 
-.top-bar {
+.header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 16px;
+}
+
+.iq-badge {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-color);
+    letter-spacing: -0.5px;
     margin-bottom: 12px;
-    gap: 8px;
-}
-
-.btn-small {
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: inherit;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-.btn-small:hover { color: var(--text-color); border-color: var(--border-strong); transform: translateY(-1px); }
-
-.user-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    background: var(--input-bg);
-    padding: 10px 14px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-.user-info-left { display: flex; align-items: center; gap: 10px; }
-.user-avatar-display {
-    width: 38px; height: 38px; font-size: 20px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2));
-    border: 1px solid rgba(99, 102, 241, 0.4);
-}
-#display-nome { font-size: 14px; font-weight: 700; }
-.game-name {
-    font-size: 12.5px; color: var(--text-muted); font-weight: 600;
-    padding: 4px 10px; border-radius: 999px;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.25);
-}
-
-.score-board {
-    display: grid; grid-template-columns: repeat(5, 1fr);
-    gap: 6px; background: var(--input-bg); padding: 10px;
-    border-radius: var(--radius-md); margin-bottom: 12px;
-    font-size: 10px; border: 1px solid var(--border-color);
-    color: var(--text-muted); text-transform: uppercase; font-weight: 600;
-}
-.score-board > div {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 6px 2px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02);
-}
-.score-board strong {
-    font-size: 14px; font-family: 'JetBrains Mono', monospace; font-weight: 700; text-transform: none;
-}
-#display-nivel  { color: var(--c-blue); }
-#display-pontos { color: var(--c-green); }
-#display-tempo  { color: #60a5fa; }
-#display-pares  { color: var(--c-amber); }
-#display-estrelas { color: var(--c-star); }
-
-.instructions {
-    font-size: 12.5px; color: var(--text-muted); margin: 4px 0 12px; line-height: 1.5; min-height: 36px;
 }
 
 .board-wrapper {
-    position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 420px;
-    margin: 0 auto 12px; border-radius: 14px; overflow: hidden;
-    background: var(--board-bg);
-    border: 2px solid rgba(99, 102, 241, 0.35);
-    box-shadow: 0 12px 40px -14px rgba(0, 0, 0, 0.55), 0 0 24px -6px rgba(99, 102, 241, 0.35);
-    touch-action: none; user-select: none;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    margin-bottom: 16px;
+    cursor: crosshair;
 }
 
-#game-board {
-    position: absolute; inset: 0; display: grid; gap: 2px; padding: 6px;
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.cell {
-    background: var(--cell-empty); border-radius: 4px; position: relative;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s ease;
-}
-.cell.error { animation: shake 0.3s ease; box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    75% { transform: translateX(2px); }
+.controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
 }
 
-.endpoint {
-    width: 68%; height: 68%; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; color: #fff;
-    box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.35), 0 3px 6px rgba(0, 0, 0, 0.35);
-    border: 2px solid rgba(255, 255, 255, 0.75); z-index: 3; pointer-events: none;
+button, select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s ease;
 }
-.endpoint.connected { box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(255, 255, 255, 0.55), 0 0 20px rgba(255, 255, 255, 0.6); }
-
-.cell.trail { background: var(--trail-color, transparent); }
-.cell.trail::after {
-    content: ""; position: absolute; inset: 34%; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.92);
-}
-
-.controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-.controls-grid.triple { grid-template-columns: 1fr 1fr 1fr; }
-
-select {
-    width: 100%; padding: 11px 12px; border: 1px solid var(--border-color);
-    border-radius: var(--radius-md); font-size: 14px; font-family: inherit; font-weight: 600;
-    background: var(--input-bg); color: var(--text-color); cursor: pointer;
-}
-select:focus { outline: none; border-color: var(--btn-primary); }
-
-button.action {
-    width: 100%; padding: 12px 14px; border: none; border-radius: var(--radius-md);
-    font-family: inherit; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
-    background: linear-gradient(135deg, var(--btn-primary), var(--btn-accent));
-    box-shadow: var(--shadow-btn);
-    transition: transform 0.15s ease, filter 0.2s ease;
-}
-button.action:hover { transform: translateY(-2px); filter: brightness(1.08); }
-button.secondary { background: linear-gradient(135deg, #475569, #334155); }
-button.magic { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #1c1917; }
-button.paint { background: linear-gradient(135deg, #ec4899, #f472b6); }
-button.paint.active { box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.5); }
-
-/* Painel de Escolha de Cor */
-.color-picker-overlay {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px);
-    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
-}
-.color-picker-overlay.show { display: flex; }
-.color-picker {
-    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg);
-    padding: 24px; max-width: 400px; width: 100%; box-shadow: var(--shadow-card); text-align: center;
-}
-.color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0; }
-.color-swatch {
-    aspect-ratio: 1; border-radius: 50%; cursor: pointer; border: 3px solid rgba(255, 255, 255, 0.7);
-    transition: transform 0.2s ease;
-}
-.color-swatch:hover { transform: scale(1.15); border-color: #fff; }
+button:active { transform: scale(0.98); }
+.btn-action { background: var(--btn-primary); color: #fff; }
+.btn-secondary { background: #f1f5f9; color: var(--text-muted); }
+select { background: #f1f5f9; color: var(--text-color); font-weight: 700; text-align: center; appearance: none; }
 </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="top-bar">
-        <a href="#" class="btn-small">⬅ Voltar</a>
-        <button id="theme-toggle" class="btn-small">🌙 Tema</button>
+    <div class="header">
+        <a href="#" style="text-decoration:none; color:var(--text-muted); font-weight:700; font-size:14px;">⬅ Voltar</a>
+        <span id="display-pontos" style="font-weight:800; color:var(--btn-primary);">Pontos: 0</span>
     </div>
 
-    <div class="user-header">
-        <div class="user-info-left">
-            <span id="display-avatar" class="user-avatar-display">🎮</span>
-            <strong id="display-nome">Jogador</strong>
-        </div>
-        <span class="game-name">Brain Curves</span>
-    </div>
-
-    <div class="score-board">
-        <div>Nível<br><strong id="display-nivel">1</strong></div>
-        <div>Pontos<br><strong id="display-pontos">0</strong></div>
-        <div>Tempo<br><strong id="display-tempo">00:00</strong></div>
-        <div>Pares<br><strong id="display-pares">0/3</strong></div>
-        <div>⭐<br><strong id="display-estrelas">0</strong></div>
-    </div>
-
-    <p class="instructions" id="info-instrucao">Arraste para ligar os pares. Use 🎨 Pintar para repintar bolinhas.</p>
+    <div class="iq-badge" id="iq-display">IQ = 94</div>
 
     <div class="board-wrapper">
-        <div id="game-board"></div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
     </div>
 
-    <div class="controls-grid">
+    <div class="controls">
         <select id="select-nivel">
-            <option value="1" selected>Nível 1 (5×5)</option>
-            <option value="2">Nível 2 (6×6)</option>
-            <option value="3">Nível 3 (7×7)</option>
+            <option value="1">Nível 1 (Básico)</option>
+            <option value="2">Nível 2 (Intermédio)</option>
+            <option value="3">Nível 3 (Avançado)</option>
         </select>
-        <button id="btn-reset" class="action secondary">🔄 Reiniciar</button>
-    </div>
-
-    <div class="controls-grid triple" style="margin-top: 8px;">
-        <button id="btn-hint" class="action magic">💡 Dica</button>
-        <button id="btn-paint" class="action paint">🎨 Pintar</button>
-        <button id="btn-cancel-paint" class="action secondary" style="display:none;">✖ Cancelar</button>
-    </div>
-</div>
-
-<!-- Overlay para Pintar Bolinhas -->
-<div class="color-picker-overlay" id="color-picker">
-    <div class="color-picker">
-        <h3>🎨 Escolher Nova Cor</h3>
-        <p style="font-size: 12px; color: var(--text-muted);">Custa 1 estrela ⭐</p>
-        <div class="color-grid" id="color-grid"></div>
-        <button class="action secondary" id="color-cancel">Cancelar</button>
+        <button class="btn-action" id="btn-reset">🔄 Reiniciar</button>
     </div>
 </div>
 
 <script type="module">
 import { db } from "./firebase-config.js";
-import { ref, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-const PALETA = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
 const estado = {
-    nivel: 1, tamanho: 5, grid: [], pares: [], trilhas: {},
-    desenhando: null, estrelas: 3, pontos: 0, segundos: 0, timer: null, concluido: false,
-    modoPintura: false, pinturaSelecionadas: [],
-    jogadorSessao: JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default', nome: 'Jogador', avatar: '🎮' }
+    nivel: 1,
+    pares: [
+        { id: 0, cor: '#4ade80', a: { x: 60, y: 60 }, b: { x: 340, y: 340 } },
+        { id: 1, cor: '#ef4444', a: { x: 340, y: 60 }, b: { x: 60, y: 340 } }
+    ],
+    trilhas: {},
+    desenhando: null,
+    pontos: 0,
+    jogadorSessao: JSON.parse(localStorage.getItem('brain_hub_jogador')) || { chave: 'visitante_default' }
 };
 
-document.getElementById('display-nome').textContent = estado.jogadorSessao.nome;
-document.getElementById('display-avatar').textContent = estado.jogadorSessao.avatar;
+function desenharTabuleiro() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-const board = document.getElementById('game-board');
-const displayNivel = document.getElementById('display-nivel');
-const displayPontos = document.getElementById('display-pontos');
-const displayTempo = document.getElementById('display-tempo');
-const displayPares = document.getElementById('display-pares');
-const displayEstrelas = document.getElementById('display-estrelas');
-const infoInstrucao = document.getElementById('info-instrucao');
-const selectNivel = document.getElementById('select-nivel');
-const btnReset = document.getElementById('btn-reset');
-const btnHint = document.getElementById('btn-hint');
-const btnPaint = document.getElementById('btn-paint');
-const btnCancelPaint = document.getElementById('btn-cancel-paint');
-const colorPicker = document.getElementById('color-picker');
-const colorGrid = document.getElementById('color-grid');
-const colorCancel = document.getElementById('color-cancel');
-const themeToggle = document.getElementById('theme-toggle');
+    // Desenhar trilhas ativas com curvas suaves (Bézier)
+    for (const parId in estado.trilhas) {
+        const trilha = estado.trilhas[parId];
+        if (trilha.length < 2) continue;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = trilha.cor;
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-// Sistema de Som Simples via Web Audio API
-let audioCtx = null;
-function tocarSom(tipo) {
-    try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        if (tipo === 'par') { osc.frequency.setValueAtTime(660, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(990, audioCtx.currentTime + 0.12); }
-        else if (tipo === 'vitoria') { osc.frequency.setValueAtTime(523, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1047, audioCtx.currentTime + 0.25); }
-        else { osc.frequency.setValueAtTime(220, audioCtx.currentTime); }
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-    } catch (_) {}
-}
-
-function iniciarPuzzle(nivel) {
-    estado.nivel = nivel;
-    estado.tamanho = nivel + 4;
-    estado.trilhas = {};
-    estado.concluido = false;
-    estado.modoPintura = false;
-    estado.pinturaSelecionadas = [];
-    btnPaint.classList.remove('active');
-    btnCancelPaint.style.display = 'none';
-
-    const n = estado.tamanho;
-    board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
-    board.style.gridTemplateRows = `repeat(${n}, 1fr)`;
-    board.innerHTML = '';
-
-    estado.grid = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ cor: null, parId: null, tipo: 'vazio' })));
-    
-    estado.pares = [
-        { id: 0, cor: PALETA[0], a: {r: 0, c: 0}, b: {r: n-1, c: n-1} },
-        { id: 1, cor: PALETA[1], a: {r: 0, c: n-1}, b: {r: n-1, c: 0} },
-        { id: 2, cor: PALETA[2], a: {r: 1, c: 0}, b: {r: n-2, c: n-1} }
-    ];
-
-    estado.pares.forEach(p => {
-        estado.grid[p.a.r][p.a.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
-        estado.grid[p.b.r][p.b.c] = { cor: p.cor, parId: p.id, tipo: 'endpoint' };
-    });
-
-    for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.dataset.r = r; cell.dataset.c = c;
-            cell.id = `cell-${r}-${c}`;
-            board.appendChild(cell);
+        ctx.moveTo(trilha[0].x, trilha[0].y);
+        for (let i = 1; i < trilha.length; i++) {
+            ctx.lineTo(trilha[i].x, trilha[i].y);
         }
+        ctx.stroke();
     }
 
-    displayNivel.textContent = nivel;
-    atualizarContadores();
-    atualizarVisual();
-    iniciarTimer();
+    // Desenhar linha em tempo real ao arrastar
+    if (estado.desenhando && estado.desenhando.pontos.length > 1) {
+        const d = estado.desenhando;
+        ctx.beginPath();
+        ctx.strokeStyle = d.cor;
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.moveTo(d.pontos[0].x, d.pontos[0].y);
+        for (let i = 1; i < d.pontos.length; i++) {
+            ctx.lineTo(d.pontos[i].x, d.pontos[i].y);
+        }
+        ctx.stroke();
+    }
+
+    // Desenhar as esferas (Endpoints) com efeito 3D e sombra realista
+    estado.pares.forEach(par => {
+        [par.a, par.b].forEach(p => {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 6;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 22, 0, Math.PI * 2);
+            ctx.fillStyle = par.cor;
+            ctx.fill();
+
+            // Brilho interior (estilo esfera 3D da imagem)
+            ctx.beginPath();
+            ctx.arc(p.x - 6, p.y - 6, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fill();
+
+            ctx.restore();
+        });
+    });
 }
 
-function atualizarContadores() {
-    displayPares.textContent = `${Object.keys(estado.trilhas).length}/${estado.pares.length}`;
-    displayEstrelas.textContent = estado.estrelas;
-}
+// Controlo de toque e rato no Canvas
+let ativo = false;
+let parAtual = null;
 
-function atualizarVisual() {
-    const n = estado.tamanho;
-    for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-            const cell = document.getElementById(`cell-${r}-${c}`);
-            if (!cell) continue;
-            cell.className = 'cell';
-            cell.style.removeProperty('--trail-color');
-            const dado = estado.grid[r][c];
+canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-            if (dado.tipo === 'endpoint') {
-                const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
-                cell.innerHTML = `<div class="endpoint${conectado}" style="background:${dado.cor}"></div>`;
-            } else if (dado.tipo === 'trilha') {
-                cell.classList.add('trail');
-                cell.style.setProperty('--trail-color', dado.cor);
-                cell.innerHTML = '';
-            } else {
-                cell.innerHTML = '';
+    estado.pares.forEach(par => {
+        [ {p: par.a, tipo: 'a'}, {p: par.b, tipo: 'b'} ].forEach(item => {
+            if (Math.hypot(item.p.x - x, item.p.y - y) < 28) {
+                ativo = true;
+                parAtual = par;
+                delete estado.trilhas[par.id];
+                estado.desenhando = { parId: par.id, cor: par.cor, pontos: [{ x: item.p.x, y: item.p.y }] };
             }
-        }
-    }
-}
-
-let activePointerId = null;
-board.addEventListener('pointerdown', (e) => {
-    if (estado.concluido) return;
-    const cell = e.target.closest('.cell');
-    if (!cell) return;
-    const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
-    const dado = estado.grid[r][c];
-
-    if (estado.modoPintura) {
-        if (dado.tipo === 'endpoint') selecionarParaPintura(r, c, dado);
-        return;
-    }
-
-    if (dado.tipo === 'endpoint') {
-        e.preventDefault();
-        activePointerId = e.pointerId;
-        try { board.setPointerCapture(e.pointerId); } catch (_) {}
-
-        if (estado.trilhas[dado.parId]) {
-            limparTrilha(estado.trilhas[dado.parId]);
-            delete estado.trilhas[dado.parId];
-        }
-        estado.desenhando = { parId: dado.parId, cor: dado.cor, pontos: [{ r, c }] };
-        atualizarContadores();
-        atualizarVisual();
-    }
-});
-
-board.addEventListener('pointermove', (e) => {
-    if (!estado.desenhando || e.pointerId !== activePointerId) return;
-    e.preventDefault();
-    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cell');
-    if (!cell) return;
-    const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
-    
-    const trail = estado.desenhando.pontos;
-    const ultima = trail[trail.length - 1];
-    if (ultima.r === r && ultima.c === c) return;
-    if (Math.abs(r - ultima.r) + Math.abs(c - ultima.c) !== 1) return;
-
-    const alvo = estado.grid[r][c];
-    if (alvo.tipo === 'endpoint' && alvo.parId === estado.desenhando.parId) {
-        trail.push({ r, c });
-        estado.trilhas[estado.desenhando.parId] = { pontos: [...trail] };
-        estado.desenhando = null;
-        tocarSom('par');
-        atualizarContadores();
-        atualizarVisual();
-        verificarVitoria();
-        return;
-    }
-    if (alvo.tipo === 'vazio') {
-        trail.push({ r, c });
-        estado.grid[r][c] = { cor: estado.desenhando.cor, parId: estado.desenhando.parId, tipo: 'trilha' };
-        atualizarVisual();
-    }
-});
-
-function limparTrilha(trilhaObj) {
-    if (!trilhaObj) return;
-    trilhaObj.pontos.forEach(p => {
-        if (estado.grid[p.r][p.c].tipo === 'trilha') {
-            estado.grid[p.r][p.c] = { cor: null, parId: null, tipo: 'vazio' };
-        }
+        });
     });
-}
-
-// Mecânica de Pintura
-function toggleModoPintura() {
-    estado.modoPintura = !estado.modoPintura;
-    estado.pinturaSelecionadas = [];
-    if (estado.modoPintura) {
-        btnPaint.classList.add('active');
-        btnCancelPaint.style.display = '';
-        infoInstrucao.innerHTML = "🎨 Toque em <b>2 bolinhas</b> para pintar (Custa 1 ⭐).";
-    } else {
-        btnPaint.classList.remove('active');
-        btnCancelPaint.style.display = 'none';
-        infoInstrucao.textContent = "Arraste para ligar os pares correspondentes.";
-    }
-}
-
-function selecionarParaPintura(r, c, dado) {
-    estado.pinturaSelecionadas.push({ r, c, parId: dado.parId, cor: dado.cor });
-    if (estado.pinturaSelecionadas.length === 2) {
-        if (estado.estrelas < 1) {
-            infoInstrucao.textContent = "⚠️ Estrelas insuficientes!";
-            estado.pinturaSelecionadas = [];
-            return;
-        }
-        abrirColorPicker();
-    }
-}
-
-function abrirColorPicker() {
-    colorGrid.innerHTML = '';
-    PALETA.forEach(cor => {
-        const swatch = document.createElement('div');
-        swatch.className = 'color-swatch';
-        swatch.style.background = cor;
-        swatch.addEventListener('click', () => aplicarCor(cor));
-        colorGrid.appendChild(swatch);
-    });
-    colorPicker.classList.add('show');
-}
-
-function aplicarCor(novaCor) {
-    estado.estrelas--;
-    const [sel1, sel2] = estado.pinturaSelecionadas;
-    const par = estado.pares.find(p => p.id === sel1.parId);
-    if (par) {
-        par.cor = novaCor;
-        estado.grid[par.a.r][par.a.c].cor = novaCor;
-        estado.grid[par.b.r][par.b.c].cor = novaCor;
-    }
-    colorPicker.classList.remove('show');
-    toggleModoPintura();
-    atualizarContadores();
-    atualizarVisual();
-}
-
-colorCancel.addEventListener('click', () => {
-    colorPicker.classList.remove('show');
-    toggleModoPintura();
 });
 
-// Sistema de Dica
-btnHint.addEventListener('click', () => {
-    if (estado.concluido) return;
-    const parNaoLigado = estado.pares.find(p => !estado.trilhas[p.id]);
-    if (parNaoLigado) {
-        estado.trilhas[parNaoLigado.id] = { pontos: [parNaoLigado.a, parNaoLigado.b] };
-        tocarSom('par');
-        atualizarContadores();
-        atualizarVisual();
+canvas.addEventListener('pointermove', (e) => {
+    if (!ativo || !estado.desenhando) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    estado.desenhando.pontos.push({ x, y });
+    desenharTabuleiro();
+});
+
+canvas.addEventListener('pointerup', (e) => {
+    if (!ativo || !estado.desenhando) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    // Verificar se chegou ao ponto final correspondente
+    const par = estado.pares.find(p => p.id === estado.desenhando.parId);
+    const outroPonto = (Math.hypot(par.a.x - estado.desenhando.pontos[0].x, par.a.y - estado.desenhando.pontos[0].y) < 20) ? par.b : par.a;
+
+    if (Math.hypot(outroPonto.x - x, outroPonto.y - y) < 30) {
+        estado.trilhas[par.id] = [...estado.desenhando.pontos];
         verificarVitoria();
     }
+
+    ativo = false;
+    estado.desenhando = null;
+    desenharTabuleiro();
 });
 
 function verificarVitoria() {
     if (Object.keys(estado.trilhas).length === estado.pares.length) {
-        estado.concluido = true;
-        clearInterval(estado.timer);
-        tocarSom('vitoria');
-        infoInstrucao.innerHTML = "🎉 <b>Parabéns! Nível concluído com sucesso!</b>";
-        salvarProgresso();
+        document.getElementById('iq-display').textContent = "IQ = 145 🎉";
+        estado.pontos += 150;
+        document.getElementById('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+        salvarNoFirebase();
     }
 }
 
-async function salvarProgresso() {
+async function salvarNoFirebase() {
     try {
         const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, { pontos: estado.pontos += 100, ultimaAtividade: new Date().toISOString() });
+        await update(refUser, { pontos: estado.pontos, ultimaAtividade: new Date().toISOString() });
     } catch (_) {}
 }
 
-function iniciarTimer() {
-    clearInterval(estado.timer);
-    estado.segundos = 0;
-    estado.timer = setInterval(() => {
-        estado.segundos++;
-        const m = String(Math.floor(estado.segundos / 60)).padStart(2, '0');
-        const s = String(estado.segundos % 60).padStart(2, '0');
-        displayTempo.textContent = `${m}:${s}`;
-    }, 1000);
-}
-
-selectNivel.addEventListener('change', (e) => iniciarPuzzle(parseInt(e.target.value)));
-btnReset.addEventListener('click', () => iniciarPuzzle(estado.nivel));
-btnPaint.addEventListener('click', toggleModoPintura);
-btnCancelPaint.addEventListener('click', toggleModoPintura);
-
-themeToggle.addEventListener('click', () => {
-    const atual = document.documentElement.getAttribute('data-theme');
-    const proximo = atual === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', proximo);
-    themeToggle.textContent = proximo === 'dark' ? '🌙 Tema' : '☀️ Tema';
+document.getElementById('btn-reset').addEventListener('click', () => {
+    estado.trilhas = {};
+    document.getElementById('iq-display').textContent = "IQ = 94";
+    desenharTabuleiro();
 });
 
-iniciarPuzzle(1);
+desenharTabuleiro();
 </script>
 </body>
 </html>
