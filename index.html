@@ -147,7 +147,6 @@ function gerarPares(qtd) {
     const pares = [];
     const margem = 60;
     const tamanhoArea = canvas.width - (margem * 2);
-    const posicoes = [];
 
     for (let i = 0; i < qtd; i++) {
         let a, b;
@@ -180,10 +179,9 @@ function iniciarJogo(nivel) {
 function desenharTabuleiro() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Desenhar linhas concluídas com curvas suaves (Bézier)
     for (const parId in estado.trilhas) {
         const trilha = estado.trilhas[parId];
-        if (trilha.length < 2) continue;
+        if (trilha.pontos.length < 2) continue;
 
         ctx.beginPath();
         ctx.strokeStyle = trilha.cor;
@@ -191,14 +189,13 @@ function desenharTabuleiro() {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        ctx.moveTo(trilha[0].x, trilha[0].y);
-        for (let i = 1; i < trilha.length; i++) {
-            ctx.lineTo(trilha[i].x, trilha[i].y);
+        ctx.moveTo(trilha.pontos[0].x, trilha.pontos[0].y);
+        for (let i = 1; i < trilha.pontos.length; i++) {
+            ctx.lineTo(trilha.pontos[i].x, trilha.pontos[i].y);
         }
         ctx.stroke();
     }
 
-    // Desenhar linha ativa em tempo real ao arrastar
     if (estado.desenhando && estado.desenhando.pontos.length > 1) {
         const d = estado.desenhando;
         ctx.beginPath();
@@ -214,7 +211,6 @@ function desenharTabuleiro() {
         ctx.stroke();
     }
 
-    // Desenhar esferas 3D com brilho e sombras realistas (idênticas à referência)
     estado.pares.forEach(par => {
         [par.a, par.b].forEach(p => {
             ctx.save();
@@ -227,7 +223,6 @@ function desenharTabuleiro() {
             ctx.fillStyle = par.cor;
             ctx.fill();
 
-            // Efeito de brilho interno na esfera
             ctx.beginPath();
             ctx.arc(p.x - 7, p.y - 7, 7, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
@@ -238,17 +233,28 @@ function desenharTabuleiro() {
     });
 }
 
-let ativo = false;
+let activePointerId = null;
+
+function obterCoordenadasCanvas(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
 
 canvas.addEventListener('pointerdown', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    e.preventDefault();
+    const pos = obterCoordenadasCanvas(e);
 
     estado.pares.forEach(par => {
         [ {p: par.a}, {p: par.b} ].forEach(item => {
-            if (Math.hypot(item.p.x - x, item.p.y - y) < 30) {
-                ativo = true;
+            if (Math.hypot(item.p.x - pos.x, item.p.y - pos.y) < 35) {
+                activePointerId = e.pointerId;
+                try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+
                 delete estado.trilhas[par.id];
                 estado.desenhando = { parId: par.id, cor: par.cor, pontos: [{ x: item.p.x, y: item.p.y }] };
             }
@@ -257,33 +263,42 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
-    if (!ativo || !estado.desenhando) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    if (!estado.desenhando || e.pointerId !== activePointerId) return;
+    e.preventDefault();
+    const pos = obterCoordenadasCanvas(e);
 
-    estado.desenhando.pontos.push({ x, y });
+    estado.desenhando.pontos.push({ x: pos.y ? pos.x : pos.x, y: pos.y });
     desenharTabuleiro();
 });
 
 canvas.addEventListener('pointerup', (e) => {
-    if (!ativo || !estado.desenhando) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    if (e.pointerId !== activePointerId) return;
+    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
 
-    const par = estado.pares.find(p => p.id === estado.desenhando.parId);
-    const inicioTrilha = estado.desenhando.pontos[0];
-    const outroPonto = (Math.hypot(par.a.x - inicioTrilha.x, par.a.y - inicioTrilha.y) < 25) ? par.b : par.a;
+    if (estado.desenhando) {
+        const pos = obterCoordenadasCanvas(e);
+        const par = estado.pares.find(p => p.id === estado.desenhando.parId);
+        const inicioTrilha = estado.desenhando.pontos[0];
+        const outroPonto = (Math.hypot(par.a.x - inicioTrilha.x, par.a.y - inicioTrilha.y) < 30) ? par.b : par.a;
 
-    if (Math.hypot(outroPonto.x - x, outroPonto.y - y) < 35) {
-        estado.trilhas[par.id] = { cor: par.cor, ...estado.desenhando.pontos };
-        verificarVitoria();
+        if (Math.hypot(outroPonto.x - pos.x, outroPonto.y - pos.y) < 40) {
+            estado.trilhas[par.id] = { cor: par.cor, pontos: [...estado.desenhando.pontos] };
+            verificarVitoria();
+        }
     }
 
-    ativo = false;
+    activePointerId = null;
     estado.desenhando = null;
     desenharTabuleiro();
+});
+
+canvas.addEventListener('pointercancel', (e) => {
+    if (e.pointerId === activePointerId) {
+        try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        activePointerId = null;
+        estado.desenhando = null;
+        desenharTabuleiro();
+    }
 });
 
 function verificarVitoria() {
