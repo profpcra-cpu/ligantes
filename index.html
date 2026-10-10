@@ -228,7 +228,6 @@ body {
 }
 
 .endpoint::after {
-    /* brilho superior */
     content: '';
     position: absolute;
     top: 12%;
@@ -291,6 +290,17 @@ button:disabled {
 
 .btn-action { background: var(--btn-primary); color: #fff; }
 .btn-action:active:not(:disabled) { background: var(--btn-primary-active); }
+
+.btn-hint {
+    background: rgba(245, 158, 11, 0.08);
+    color: #d97706;
+    border: 1.5px solid #fde68a;
+    min-height: 48px;
+    font-size: 15px;
+}
+.btn-hint:active:not(:disabled) {
+    background: rgba(245, 158, 11, 0.18);
+}
 
 .btn-undo {
     background: transparent;
@@ -394,6 +404,7 @@ select {
             <option value="5" selected>Nível 5 (5 Pares)</option>
         </select>
         <button class="btn-action" id="btn-reset" aria-label="Reiniciar nível">🔄 Reiniciar</button>
+        <button class="btn-hint" id="btn-hint" aria-label="Pedir dica">💡 Dica</button>
         <button class="btn-undo" id="btn-undo" disabled aria-label="Desfazer última trilha">↶ Desfazer</button>
     </div>
 </div>
@@ -418,10 +429,7 @@ const PALETA = [
     { cor: '#84cc16', simbolo: '⬟' }    // lima - pentágono
 ];
 
-// Grid cresce com o nível (mais espaço, mais difícil)
 const TAMANHO_POR_NIVEL = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12 };
-
-const HIT_TOLERANCIA = 0.4;  // fração da célula que ainda conta como toque
 
 // ────────────────────────────────────────────────────────────────
 // ESTADO
@@ -441,11 +449,11 @@ function lerJogadorSessao() {
 const estado = {
     nivel: 5,
     tamanho: 12,
-    grid: [],              // matriz de células { tipo, parId, cor }
-    pares: [],             // [{ id, cor, simbolo, a:{r,c}, b:{r,c} }]
-    trilhas: {},           // { parId: { cor, pontos:[{r,c}] } }
-    historico: [],         // pilha de snapshots
-    desenhando: null,      // { parId, cor, pontos:[{r,c}] }
+    grid: [],
+    pares: [],
+    trilhas: {},
+    historico: [],
+    desenhando: null,
     pontos: 0,
     segundos: 0,
     timer: null,
@@ -566,13 +574,11 @@ function iniciarDesenho(r, c) {
     const dado = estado.grid[r][c];
     if (dado.tipo !== 'endpoint') return false;
 
-    // Se já existe trilha desse par, apaga
     if (estado.trilhas[dado.parId]) {
         limparTrilhaNoGrid(estado.trilhas[dado.parId]);
         delete estado.trilhas[dado.parId];
     }
 
-    // Snapshot
     estado.historico.push(snapshotTrilhas());
 
     estado.desenhando = {
@@ -596,7 +602,6 @@ function aplicarPasso(r, c) {
     const ultima = trail[trail.length - 1];
     if (ultima.r === r && ultima.c === c) return;
 
-    // backtrack
     if (trail.length >= 2) {
         const penultima = trail[trail.length - 2];
         if (penultima.r === r && penultima.c === c) {
@@ -614,9 +619,7 @@ function aplicarPasso(r, c) {
 
     const alvo = estado.grid[r][c];
 
-    // finalizou no par correto
     if (alvo.tipo === 'endpoint' && alvo.parId === d.parId) {
-        // não pode finalizar no próprio início
         const inicio = trail[0];
         if (inicio.r === r && inicio.c === c && trail.length === 1) return;
 
@@ -631,10 +634,8 @@ function aplicarPasso(r, c) {
         return;
     }
 
-    // não passa por endpoint de outro par
     if (alvo.tipo === 'endpoint') return;
 
-    // invade trilha de outro par → apaga
     if (alvo.tipo === 'trilha' && alvo.parId !== d.parId) {
         const alheia = estado.trilhas[alvo.parId];
         if (alheia) {
@@ -643,7 +644,6 @@ function aplicarPasso(r, c) {
         }
     }
 
-    // anexa
     trail.push({ r, c });
     estado.grid[r][c] = { tipo: 'trilha', cor: d.cor, parId: d.parId };
     atualizarVisualDom();
@@ -659,7 +659,6 @@ function lidarComMovimento(rAlvo, cAlvo) {
         const ultima = trail[trail.length - 1];
         if (ultima.r === rAlvo && ultima.c === cAlvo) return;
 
-        // backtrack
         if (trail.length >= 2) {
             const penultima = trail[trail.length - 2];
             if (penultima.r === rAlvo && penultima.c === cAlvo) {
@@ -677,14 +676,13 @@ function lidarComMovimento(rAlvo, cAlvo) {
         const antes = trail.length;
         aplicarPasso(passo.r, passo.c);
 
-        if (!estado.desenhando) return; // finalizou
-        if (estado.desenhando.pontos.length === antes) return; // travou
+        if (!estado.desenhando) return;
+        if (estado.desenhando.pontos.length === antes) return;
     }
 }
 
 function finalizarDesenho() {
     if (!estado.desenhando) return;
-    // limpa progresso parcial (mantém só endpoints)
     estado.desenhando.pontos.forEach((p, idx) => {
         if (idx === 0) return;
         if (estado.grid[p.r][p.c].tipo === 'trilha') {
@@ -719,11 +717,9 @@ function snapshotTrilhas() {
 function desfazer() {
     if (estado.historico.length === 0) return;
 
-    // limpa tudo
     for (const id in estado.trilhas) limparTrilhaNoGrid(estado.trilhas[id]);
     estado.trilhas = {};
 
-    // restaura último snapshot
     const snap = estado.historico.pop();
     for (const id in snap) {
         estado.trilhas[id] = snap[id];
@@ -744,6 +740,48 @@ function desfazer() {
     atualizarVisualDom();
     atualizarBotaoUndo();
     atualizarProgresso();
+}
+
+// ────────────────────────────────────────────────────────────────
+// SISTEMA DE DICAS
+// ────────────────────────────────────────────────────────────────
+function darDica() {
+    if (estado.concluido) return;
+    
+    const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
+    if (paresPendentes.length === 0) {
+        mostrarToast('Todos os pares já estão ligados!');
+        return;
+    }
+
+    const parAlvo = paresPendentes[0];
+    
+    if (estado.trilhas[parAlvo.id]) {
+        limparTrilhaNoGrid(estado.trilhas[parAlvo.id]);
+        delete estado.trilhas[parAlvo.id];
+    }
+
+    estado.historico.push(snapshotTrilhas());
+
+    const pontosDica = [parAlvo.a];
+    if (parAlvo.a.r !== parAlvo.b.r) {
+        pontosDica.push({ r: parAlvo.b.r, c: parAlvo.a.c });
+    }
+    pontosDica.push(parAlvo.b);
+
+    estado.trilhas[parAlvo.id] = { cor: parAlvo.cor, pontos: pontosDica };
+    
+    pontosDica.forEach((p, idx) => {
+        if (idx === 0 || idx === pontosDica.length - 1) return;
+        estado.grid[p.r][p.c] = { tipo: 'trilha', cor: parAlvo.cor, parId: parAlvo.id };
+    });
+
+    vibrar(20);
+    atualizarVisualDom();
+    atualizarBotaoUndo();
+    atualizarProgresso();
+    mostrarToast(`💡 Dica aplicada para o par ${parAlvo.simbolo}`);
+    verificarVitoria();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -845,30 +883,22 @@ async function salvarNoFirebase() {
             pontos: estado.pontos,
             ultimaAtividade: new Date().toISOString()
         });
-    } catch (_) {
-        // offline: localStorage já salvou
-    }
+    } catch (_) {}
 }
 
 // ────────────────────────────────────────────────────────────────
-// INPUT — Pointer Events robustos
+// INPUT — Pointer Events
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
 
-function getCellFromPoint(clientX, clientY) {
+function getCellComTolerancia(clientX, clientY) {
     const el = document.elementFromPoint(clientX, clientY);
     if (!el) return null;
     const cell = el.closest?.('.cell');
-    if (!cell) return null;
-    return { r: parseInt(cell.dataset.r, 10), c: parseInt(cell.dataset.c, 10) };
-}
-
-// Tolerância: se tocar na borda entre células, arredonda para a mais próxima
-function getCellComTolerancia(clientX, clientY) {
-    const cell = getCellFromPoint(clientX, clientY);
-    if (cell) return cell;
-    // fallback: encontra a célula mais próxima via board
+    if (cell) {
+        return { r: parseInt(cell.dataset.r, 10), c: parseInt(cell.dataset.c, 10) };
+    }
     const board = $('board');
     const rect = board.getBoundingClientRect();
     const n = estado.tamanho;
@@ -882,7 +912,7 @@ function getCellComTolerancia(clientX, clientY) {
 
 function onPointerDown(e) {
     if (estado.concluido) return;
-    if (activePointerId !== null) return; // ignora segundo dedo
+    if (activePointerId !== null) return;
     e.preventDefault();
 
     const board = $('board');
@@ -936,7 +966,6 @@ board.addEventListener('pointermove', onPointerMove, { passive: false });
 board.addEventListener('pointerup', onPointerUp);
 board.addEventListener('pointercancel', onPointerCancel);
 
-// impede scroll/gesto do sistema durante o arrasto
 board.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
 board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
@@ -956,7 +985,6 @@ function iniciarJogo(nivel) {
     activePointerId = null;
     ultimaCellTocada = null;
 
-    // grid base
     estado.grid = Array.from({ length: estado.tamanho }, () =>
         Array.from({ length: estado.tamanho }, () => ({ tipo: 'vazio', cor: null, parId: null }))
     );
@@ -975,20 +1003,26 @@ function iniciarJogo(nivel) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// CONTROLES
+// CONTROLES E EVENTOS
 // ────────────────────────────────────────────────────────────────
 $('select-nivel').addEventListener('change', (e) => {
     const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
-    if (temProgresso && !confirm('Trocar de nível vai apagar o progresso. Continuar?')) {
+    if (temProgresso && !confirm('Trocar de nível vai apagar o progresso atual. Continuar?')) {
         e.target.value = estado.nivel;
         return;
     }
     iniciarJogo(parseInt(e.target.value, 10));
 });
 
-$('btn-reset').addEventListener('click', () => iniciarJogo(estado.nivel));
+$('btn-reset').addEventListener('click', () => {
+    const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
+    if (temProgresso && !confirm('Tem a certeza de que deseja reiniciar o nível atual? O progresso será perdido.')) {
+        return;
+    }
+    iniciarJogo(estado.nivel);
+});
 
-$('btn-undo').addEventListener('click', desfazer);
+$('btn-hint').addEventListener('click', darDica);$('btn-undo').addEventListener('click', desfazer);
 
 // ────────────────────────────────────────────────────────────────
 // BOOT
@@ -1003,7 +1037,6 @@ try {
 
 iniciarJogo(5);
 
-// pausa timer ao esconder a aba (economia de bateria)
 document.addEventListener('visibilitychange', () => {
     if (document.hidden && estado.timer && !estado.concluido) {
         pararTimer();
