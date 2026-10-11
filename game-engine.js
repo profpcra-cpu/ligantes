@@ -67,55 +67,6 @@ async function configurarSessao(user) {
     await carregarPontosDoFirebase();
 }
 
-// Ouvintes para os botões de autenticação na UI (se existirem)
-document.addEventListener('DOMContentLoaded', () => {
-    if ($('btn-login-google')) {$('btn-login-google').addEventListener('click', async () => {
-            try {
-                const provider = new GoogleAuthProvider();
-                await signInWithPopup(auth, provider);
-                mostrarToast('Autenticado com sucesso!');
-            } catch (e) {
-                console.error(e);
-                mostrarToast('Erro ao autenticar. Verifique o Firebase Console.');
-            }
-        });
-    }
-
-    if ($('btn-login-anon')) {$('btn-login-anon').addEventListener('click', async () => {
-            try {
-                await signInAnonymously(auth);
-                mostrarToast('Modo Anónimo ativado.');
-            } catch (e) {
-                mostrarToast('Erro ao iniciar como anónimo.');
-            }
-        });
-    }
-
-    if ($('btn-switch-user')) {$('btn-switch-user').addEventListener('click', async () => {
-            if (confirm('Deseja terminar a sessão atual?')) {
-                await signOut(auth);
-                window.location.reload();
-            }
-        });
-    }
-
-    if ($('btn-reset-score')) {$('btn-reset-score').addEventListener('click', async () => {
-            if (confirm('Deseja zerar a pontuação e começar do zero?')) {
-                estado.pontos = 0;
-                if ($('display-pontos'))$('display-pontos').textContent = `Pontos: 0`;
-                salvarLocal();
-                if (estado.utilizador && !estado.utilizador.isAnonimo) {
-                    await sincronizarPontuacaoFirebase();
-                }
-                mostrarToast('Pontuação reiniciada!');
-            }
-        });
-    }
-
-    verificarSessaoInicial();
-    iniciarJogo(5);
-});
-
 async function carregarPontosDoFirebase() {
     if (!estado.utilizador || estado.utilizador.isAnonimo) {
         try {
@@ -492,7 +443,7 @@ function darDica() {
     if (estado.concluido) return;
     const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
     if (paresPendentes.length === 0) {
-        mostrarToast('Todos os pares já estão ligados!');
+        mostrarToast('Todos los pares já estão ligados!');
         return;
     }
 
@@ -756,25 +707,93 @@ export function iniciarJogo(nivel) {
     iniciarTimer();
 }
 
-// Controlos de UI e Eventos globais do motor
-if ($('select-nivel')) {$('select-nivel').addEventListener('change', (e) => {
-        const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
-        if (temProgresso && !confirm('Trocar de nível vai apagar o progresso atual. Continuar?')) {
-            e.target.value = estado.nivel;
-            return;
-        }
-        iniciarJogo(parseInt(e.target.value, 10));
-    });
+// ────────────────────────────────────────────────────────────────
+// LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
+// ────────────────────────────────────────────────────────────────
+function inicializarBotoesUI() {
+    const btnGoogle = $('btn-login-google');
+    if (btnGoogle) {
+        btnGoogle.onclick = async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+                mostrarToast('Autenticado com sucesso!');
+            } catch (e) {
+                console.error(e);
+                mostrarToast('Erro ao autenticar com o Google.');
+            }
+        };
+    }
+
+    const btnAnon = $('btn-login-anon');
+    if (btnAnon) {
+        btnAnon.onclick = async () => {
+            try {
+                await signInAnonymously(auth);
+                mostrarToast('Modo Anónimo ativado.');
+            } catch (e) {
+                mostrarToast('Erro ao iniciar como anónimo.');
+            }
+        };
+    }
+
+    const btnSwitch = $('btn-switch-user');
+    if (btnSwitch) {
+        btnSwitch.onclick = async () => {
+            if (confirm('Deseja terminar a sessão atual?')) {
+                await signOut(auth);
+                window.location.reload();
+            }
+        };
+    }
+
+    const btnResetScore = $('btn-reset-score');
+    if (btnResetScore) {
+        btnResetScore.onclick = async () => {
+            if (confirm('Deseja zerar a pontuação e começar do zero?')) {
+                estado.pontos = 0;
+                const disp = $('display-pontos');
+                if (disp) disp.textContent = `Pontos: 0`;
+                salvarLocal();
+                if (estado.utilizador && !estado.utilizador.isAnonimo) {
+                    await sincronizarPontuacaoFirebase();
+                }
+                mostrarToast('Pontuação reiniciada!');
+            }
+        };
+    }
+
+    const selectNivel = $('select-nivel');
+    if (selectNivel) {
+        selectNivel.onchange = (e) => {
+            const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
+            if (temProgresso && !confirm('Trocar de nível vai apagar o progresso atual. Continuar?')) {
+                e.target.value = estado.nivel;
+                return;
+            }
+            iniciarJogo(parseInt(e.target.value, 10));
+        };
+    }
+
+    const btnReset = $('btn-reset');
+    if (btnReset) {
+        btnReset.onclick = () => {
+            const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
+            if (temProgresso && !confirm('Tem a certeza de que deseja reiniciar o nível atual? O progresso será perdido.')) {
+                return;
+            }
+            iniciarJogo(estado.nivel);
+        };
+    }
+
+    const btnHint = $('btn-hint');
+    if (btnHint) btnHint.onclick = darDica;
+
+    const btnUndo = $('btn-undo');
+    if (btnUndo) btnUndo.onclick = desfazer;
 }
 
-if ($('btn-reset')) {$('btn-reset').addEventListener('click', () => {
-        const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
-        if (temProgresso && !confirm('Tem a certeza de que deseja reiniciar o nível atual? O progresso será perdido.')) {
-            return;
-        }
-        iniciarJogo(estado.nivel);
-    });
-}
-
-if ($('btn-hint'))$('btn-hint').addEventListener('click', darDica);
-if ($('btn-undo'))$('btn-undo').addEventListener('click', desfazer);
+// Inicialização imediata ao carregar o módulo
+inicializarBotoesUI();
+verificarSessaoInicial();
+iniciarJogo(5);
