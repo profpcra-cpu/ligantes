@@ -154,7 +154,6 @@ function encontrarCaminhoAleatorio(inicio, fim, gridOcupado, tamanho, maxPassos)
     return null;
 }
 
-
 export function gerarPares(tamanho, qtdPares) {
     for (let tentativa = 0; tentativa < 150; tentativa++) {
         const gridOcupado = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
@@ -164,7 +163,6 @@ export function gerarPares(tamanho, qtdPares) {
         const margemMin = tamanho > 6 ? 1 : 0;
         const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
 
-        // Declaração explícita da matriz de células disponíveis
         const celulasDisponiveis = [];
         for (let r = margemMin; r <= margemMax; r++) {
             for (let c = margemMin; c <= margemMax; c++) {
@@ -174,7 +172,7 @@ export function gerarPares(tamanho, qtdPares) {
 
         for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponive[j], celulasDisponive[i]];
+            [celulasDisponiveis[i], celulasDisponive[j]] = [celulasDisponive[j], celulasDisponive[i]];
         }
 
         for (let i = 0; i < qtdPares; i++) {
