@@ -29,7 +29,6 @@ export const PALETA = [
     { cor: '#0ea5e9', simbolo: '❄' }
 ];
 
-// Progressão estruturada: { nível: { tamanho da grelha, quantidade de pares } }
 const CONFIG_NIVEIS = {
     1: { tamanho: 6, pares: 3 },
     2: { tamanho: 8, pares: 5 },
@@ -115,129 +114,127 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO INTELIGENTE DE PARES (Dispersão Máxima + BFS)
+// GERAÇÃO GARANTIDA DE PARES (Baseada em Caminhos Validos)
 // ────────────────────────────────────────────────────────────────
-function distanciaManhattan(p1, p2) {
-    return Math.abs(p1.r - p2.r) + Math.abs(p1.c - p2.c);
+function obterVizinhosEmbaralhados(r, c, tamanho) {
+    const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
+    // Embaralha as direções aleatoriamente
+    for (let i = dirs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+    }
+    return dirs.map(d => ({ r: r + d.r, c: c + d.c }))
+               .filter(p => p.r >= 0 && p.r < tamanho && p.c >= 0 && p.c < tamanho);
 }
 
-function validarSolvabilidade(tamanho, pares) {
-    const gridTemp = Array.from({ length: tamanho }, () => Array(tamanho).fill(null));
-    pares.forEach(p => {
-        gridTemp[p.a.r][p.a.c] = { tipo: 'endpoint', parId: p.id };
-        gridTemp[p.b.r][p.b.c] = { tipo: 'endpoint', parId: p.id };
-    });
+function encontrarCaminhoAleatorio(inicio, fim, gridOcupado, tamanho, maxPassos) {
+    const fila = [[inicio]];
+    const visitados = new Set();
+    visitados.add(`${inicio.r},${inicio.c}`);
 
-    for (const par of pares) {
-        const fila = [{ r: par.a.r, c: par.a.c }];
-        const visitados = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
-        visitados[par.a.r][par.a.c] = true;
-        let caminhoEncontrado = false;
+    while (fila.length > 0) {
+        const caminho = fila.shift();
+        const atual = caminho[caminho.length - 1];
 
-        while (fila.length > 0) {
-            const atual = fila.shift();
-            if (atual.r === par.b.r && atual.c === par.b.c) {
-                caminhoEncontrado = true;
-                break;
-            }
+        if (atual.r === fim.r && atual.c === fim.c) {
+            return caminho;
+        }
 
-            const direcoes = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
-            for (const d of direcoes) {
-                const nr = atual.r + d.r;
-                const nc = atual.c + d.c;
-                if (nr >= 0 && nr < tamanho && nc >= 0 && nc < tamanho && !visitados[nr][nc]) {
-                    const celulaOcupada = gridTemp[nr][nc];
-                    if (celulaOcupada === null || (nr === par.b.r && nc === par.b.c)) {
-                        visitados[nr][nc] = true;
-                        fila.push({ r: nr, c: nc });
-                    }
-                }
+        if (caminho.length > maxPassos) continue;
+
+        const vizinhos = obterVizinhosEmbaralhados(atual.r, atual.c, tamanho);
+        for (const viz of vizinhos) {
+            const chave = `${viz.r},${viz.c}`;
+            const ehFim = (viz.r === fim.r && viz.c === fim.c);
+            if (!visitados.has(chave) && (!gridOcupado[viz.r][viz.c] || ehFim)) {
+                visitados.add(chave);
+                fila.push([...caminho, viz]);
             }
         }
-        if (!caminhoEncontrado) return false;
     }
-    return true;
+    return null;
 }
 
 export function gerarPares(tamanho, qtdPares) {
-    let melhorPares = [];
-    let maxDistanciaGlobal = -1;
-    const margem = 0;
-    const limite = tamanho;
-
-    for (let t = 0; t < 100; t++) {
+    for (let tentativa = 0; tentativa < 150; tentativa++) {
+        const gridOcupado = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
         const paresCandidatos = [];
-        const ocupados = [];
-        let distanciaAcumuladaTentativa = 0;
+        let geracaoComSucesso = true;
+
+        // Recolher células disponíveis para início/fim
+        const celulasLivres = [];
+        for (let r = 0; r < tamanho; r++) {
+            for (let c = 0; c < tamanho; c++) {
+                celulasLivres.push({ r, c });
+            }
+        }
+
+        // Embaralhar células livres
+        for (let i = celulasLivres.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [celulasLivres[i], celulasLivres[j]] = [celulasLivres[j], celulasLivres[i]];
+        }
 
         for (let i = 0; i < qtdPares; i++) {
-            let a = null, b = null;
-            if (i === 0) {
-                a = { r: margem, c: margem };
-                b = { r: limite - 1, c: limite - 1 };
-            } else {
-                let melhorA = null;
-                let maiorDistMinima = -1;
-                for (let tent = 0; tent < 30; tent++) {
-                    const candR = margem + Math.floor(Math.random() * (limite - margem));
-                    const candC = margem + Math.floor(Math.random() * (limite - margem));
-                    if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
-                    let menorDist = Infinity;
-                    for (const occ of ocupados) {
-                        const dist = distanciaManhattan(occ, { r: candR, c: candC });
-                        if (dist < menorDist) menorDist = dist;
-                    }
-                    if (menorDist > maiorDistMinima) {
-                        maiorDistMinima = menorDist;
-                        melhorA = { r: candR, c: candC };
-                    }
-                }
-                a = melhorA || { r: margem, c: Math.floor(tamanho / 2) };
-                ocupados.push(a);
-
-                let maiorDistB = -1;
-                let melhorBLocal = null;
-                for (let tent = 0; tent < 30; tent++) {
-                    const candR = margem + Math.floor(Math.random() * (limite - margem));
-                    const candC = margem + Math.floor(Math.random() * (limite - margem));
-                    if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
-                    if (a.r === candR || a.c === candC) continue;
-                    const distA = distanciaManhattan(a, { r: candR, c: candC });
-                    if (distA > maiorDistB) {
-                        maiorDistB = distA;
-                        melhorBLocal = { r: candR, c: candC };
-                    }
-                }
-                b = melhorBLocal || { r: limite - 1, c: margem };
+            if (celulasLivres.length < 2) {
+                geracaoComSucesso = false;
+                break;
             }
-            ocupados.push(a);
-            ocupados.push(b);
-            distanciaAcumuladaTentativa += distanciaManhattan(a, b);
-            const p = PALETA[i % PALETA.length];
-            paresCandidatos.push({ id: i, cor: p.cor, simbolo: p.simbolo, a, b });
+
+            let a = null, b = null, caminho = null;
+            let tentativasPar = 0;
+
+            // Tenta encontrar dois pontos livres que consigam ligar-se por um caminho livre
+            while (tentativasPar < 20 && !caminho) {
+                if (celulasLivres.length < 2) break;
+                a = celulasLivres.pop();
+                b = celulasLivres.pop();
+
+                if (gridOcupado[a.r][a.c] || gridOcupado[b.r][b.c]) continue;
+
+                // Distância mínima para evitar pares triviais adjacentes
+                const dist = Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+                if (dist < 2) {
+                    celulasLivres.unshift(b); // devolve se muito perto
+                    tentativasPar++;
+                    continue;
+                }
+
+                caminho = encontrarCaminhoAleatorio(a, b, gridOcupado, tamanho, tamanho * 2);
+                if (!caminho) {
+                    celulasLivres.unshift(b);
+                }
+                tentativasPar++;
+            }
+
+            if (!caminho) {
+                geracaoComSucesso = false;
+                break;
+            }
+
+            // Marcar todas as células do caminho como ocupadas
+            caminho.forEach(p => {
+                gridOcupado[p.r][p.c] = true;
+            });
+
+            // Devolver as células não utilizadas do caminho para o pool se necessário, 
+            // ou mantê-las ocupadas para garantir que nenhum outro caminho cruze
+            const pInfo = PALETA[i % PALETA.length];
+            paresCandidatos.push({ id: i, cor: pInfo.cor, simbolo: pInfo.simbolo, a, b });
         }
 
-        if (validarSolvabilidade(tamanho, paresCandidatos)) {
-            if (distanciaAcumuladaTentativa > maxDistanciaGlobal) {
-                maxDistanciaGlobal = distanciaAcumuladaTentativa;
-                melhorPares = paresCandidatos;
-            }
+        if (geracaoComSucesso && paresCandidatos.length === qtdPares) {
+            return paresCandidatos;
         }
     }
 
-    if (melhorPares.length === 0) {
-        return gerarParesFallbackSimples(tamanho, qtdPares);
-    }
-    return melhorPares;
-}
-
-function gerarParesFallbackSimples(tamanho, qtdPares) {
-    const pares = [];
+    // Fallback seguro caso esgote as tentativas
+    const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 0 }, b: { r: i % tamanho, c: tamanho - 1 } });
+        paresFallback.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 0 }, b: { r: i % tamanho, c: tamanho - 1 } });
     }
-    return pares;
+    return paresFallback;
 }
 
 // ────────────────────────────────────────────────────────────────
