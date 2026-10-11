@@ -1,7 +1,8 @@
-import { estado, atualizarVisualDom, tocarSom, mostrarToast, verificarVitoria } from "./game-engine.js";
+import { estado, atualizarVisualDom, mostrarToast, verificarVitoria } from "./game-engine.js";
+import { tocarSom } from "./audio.js";
 
 /**
- * Tenta resolver automaticamente todos los pares pendentes do nível atual.
+ * Tenta resolver automaticamente todos os pares pendentes do nível atual.
  */
 export async function resolverNivelAutomaticamente() {
     if (estado.concluido) {
