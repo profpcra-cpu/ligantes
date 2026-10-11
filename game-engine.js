@@ -114,7 +114,7 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO INTELIGENTE COM VALIDAÇÃO BFS (Original Robusto)
+// GERAÇÃO INTELIGENTE COM BFS + LINHAS DE CONTORNO EXPLICITAS
 // ────────────────────────────────────────────────────────────────
 function distanciaManhattan(p1, p2) {
     return Math.abs(p1.r - p2.r) + Math.abs(p1.c - p2.c);
@@ -161,10 +161,13 @@ function validarSolvabilidade(tamanho, pares) {
 export function gerarPares(tamanho, qtdPares) {
     let melhorPares = [];
     let maxDistanciaGlobal = -1;
-    const margem = 0;
-    const limite = tamanho;
 
-    for (let t = 0; t < 150; t++) {
+    // Garantimos uma linha/coluna extra de margem (contorno vertical e horizontal)
+    // Se o tabuleiro for pequeno (ex: 6x6), margem 1 deixa a borda 0 e N-1 totalmente livres.
+    const margemMin = tamanho > 6 ? 1 : 0;
+    const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
+
+    for (let t = 0; t < 200; t++) {
         const paresCandidatos = [];
         const ocupados = [];
         let distanciaAcumuladaTentativa = 0;
@@ -172,14 +175,15 @@ export function gerarPares(tamanho, qtdPares) {
         for (let i = 0; i < qtdPares; i++) {
             let a = null, b = null;
             if (i === 0) {
-                a = { r: margem, c: margem };
-                b = { r: limite - 1, c: limite - 1 };
+                // Primeiro par posicionado respeitando as linhas de contorno exteriores
+                a = { r: margemMin, c: margemMin };
+                b = { r: margemMax, c: margemMax };
             } else {
                 let melhorA = null;
                 let maiorDistMinima = -1;
                 for (let tent = 0; tent < 30; tent++) {
-                    const candR = margem + Math.floor(Math.random() * (limite - margem));
-                    const candC = margem + Math.floor(Math.random() * (limite - margem));
+                    const candR = margemMin + Math.floor(Math.random() * (margemMax - margemMin + 1));
+                    const candC = margemMin + Math.floor(Math.random() * (margemMax - margemMin + 1));
                     if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
                     let menorDist = Infinity;
                     for (const occ of ocupados) {
@@ -191,14 +195,14 @@ export function gerarPares(tamanho, qtdPares) {
                         melhorA = { r: candR, c: candC };
                     }
                 }
-                a = melhorA || { r: margem, c: Math.floor(tamanho / 2) };
+                a = melhorA || { r: margemMin, c: Math.floor(tamanho / 2) };
                 ocupados.push(a);
 
                 let maiorDistB = -1;
                 let melhorBLocal = null;
                 for (let tent = 0; tent < 30; tent++) {
-                    const candR = margem + Math.floor(Math.random() * (limite - margem));
-                    const candC = margem + Math.floor(Math.random() * (limite - margem));
+                    const candR = margemMin + Math.floor(Math.random() * (margemMax - margemMin + 1));
+                    const candC = margemMin + Math.floor(Math.random() * (margemMax - margemMin + 1));
                     if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
                     if (a.r === candR || a.c === candC) continue;
                     const distA = distanciaManhattan(a, { r: candR, c: candC });
@@ -207,7 +211,7 @@ export function gerarPares(tamanho, qtdPares) {
                         melhorBLocal = { r: candR, c: candC };
                     }
                 }
-                b = melhorBLocal || { r: limite - 1, c: margem };
+                b = melhorBLocal || { r: margemMax, c: margemMin };
             }
             ocupados.push(a);
             ocupados.push(b);
@@ -225,18 +229,17 @@ export function gerarPares(tamanho, qtdPares) {
     }
 
     if (melhorPares.length === 0) {
-        return gerarParesFallbackSimples(tamanho, qtdPares);
+        return gerarParesFallbackContorno(tamanho, qtdPares, margemMin, margemMax);
     }
     return melhorPares;
 }
 
-function gerarParesFallbackSimples(tamanho, qtdPares) {
+function gerarParesFallbackContorno(tamanho, qtdPares, margemMin, margemMax) {
     const pares = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        const espacamento = Math.max(1, Math.floor(tamanho / (qtdPares + 1)));
-        const r = Math.min(tamanho - 1, i * espacamento);
-        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r, c: 1 }, b: { r, c: tamanho - 2 } });
+        const r = Math.min(margemMax, margemMin + (i % (margemMax - margemMin + 1)));
+        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r, c: margemMin }, b: { r, c: margemMax } });
     }
     return pares;
 }
