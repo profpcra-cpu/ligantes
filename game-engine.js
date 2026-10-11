@@ -1,7 +1,6 @@
 import { db, auth } from "./firebase-config.js";
 import { ref, update, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { tocasom } from "./audio.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
