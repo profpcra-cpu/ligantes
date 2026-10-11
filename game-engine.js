@@ -1,3 +1,4 @@
+// game-engine.js
 import { db, auth } from "./firebase-config.js";
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import {
@@ -10,7 +11,12 @@ import {
     signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { tocarSom } from "./audio.js";
-import { resolverNivelAutomaticamente } from "./solver.js";
+import {
+    resolverNivelAutomaticamente,
+    cancelarAnimacao,
+    animacaoEmAndamento,
+    setVelocidadeAnimacao
+} from "./solver.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -31,8 +37,8 @@ export const PALETA = [
 ];
 
 const CONFIG_NIVEIS = Object.freeze({
-    1: { tamanho: 6, pares: 3 },
-    2: { tamanho: 8, pares: 5 },
+    1: { tamanho: 6,  pares: 3 },
+    2: { tamanho: 8,  pares: 5 },
     3: { tamanho: 10, pares: 7 },
     4: { tamanho: 11, pares: 9 },
     5: { tamanho: 12, pares: 12 }
@@ -61,7 +67,7 @@ export const estado = {
 const $ = (id) => document.getElementById(id);
 
 // ────────────────────────────────────────────────────────────────
-// UTILITÁRIOS GENÉRICOS
+// UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function shuffleInPlace(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -73,12 +79,12 @@ function shuffleInPlace(arr) {
 
 function vibrar(ms) {
     if (navigator.vibrate) {
-        try { navigator.vibrate(ms); } catch (_) { /* ignore */ }
+        try { navigator.vibrate(ms); } catch (_) {}
     }
 }
 
 // ────────────────────────────────────────────────────────────────
-// AUTENTICAÇÃO E GESTÃO DE UTILIZADOR
+// AUTENTICAÇÃO
 // ────────────────────────────────────────────────────────────────
 function verificarSessaoInicial() {
     onAuthStateChanged(auth, (user) => {
@@ -104,16 +110,14 @@ async function configurarSessao(user) {
     };
 
     const display = $('user-display');
-    if (display) {
-        display.textContent = isAnon ? "👤 Anónimo" : emailStr.split('@')[0];
-    }
+    if (display) display.textContent = isAnon ? "👤 Anónimo" : emailStr.split('@')[0];
+
     await carregarPontosDoFirebase();
 }
 
 async function carregarPontosDoFirebase() {
     const utilizador = estado.utilizador;
 
-    // Utilizadores anónimos ou não autenticados usam localStorage
     if (!utilizador || utilizador.isAnonimo) {
         try {
             const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
@@ -121,7 +125,7 @@ async function carregarPontosDoFirebase() {
                 estado.pontos = p;
                 atualizarDisplayPontos();
             }
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
         return;
     }
 
@@ -151,10 +155,8 @@ function atualizarDisplayPontos() {
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
     const dirs = shuffleInPlace([
-        { r: -1, c: 0 },
-        { r: 1, c: 0 },
-        { r: 0, c: -1 },
-        { r: 0, c: 1 }
+        { r: -1, c: 0 }, { r: 1, c: 0 },
+        { r: 0, c: -1 }, { r: 0, c: 1 }
     ]);
     return dirs
         .map(d => ({ r: r + d.r, c: c + d.c }))
@@ -228,11 +230,7 @@ function tentarGerarPares(tamanho, qtdPares) {
                 caminho.forEach(p => { gridOcupado[p.r][p.c] = true; });
                 const pInfo = PALETA[i % PALETA.length];
                 paresCandidatos.push({
-                    id: i,
-                    cor: pInfo.cor,
-                    simbolo: pInfo.simbolo,
-                    a,
-                    b
+                    id: i, cor: pInfo.cor, simbolo: pInfo.simbolo, a, b
                 });
             } else {
                 celulasDisponiveis.unshift(b);
@@ -247,28 +245,26 @@ function tentarGerarPares(tamanho, qtdPares) {
 }
 
 export function gerarPares(tamanho, qtdPares) {
-    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_GERACAO; tentativa++) {
-        const resultado = tentarGerarPares(tamanho, qtdPares);
-        if (resultado && resultado.length === qtdPares) return resultado;
+    for (let t = 0; t < MAX_TENTATIVAS_GERACAO; t++) {
+        const r = tentarGerarPares(tamanho, qtdPares);
+        if (r && r.length === qtdPares) return r;
     }
 
-    console.warn("Geração de pares falhou — usando fallback.");
-    const paresFallback = [];
+    console.warn("Geração falhou — usando fallback.");
+    const fallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        paresFallback.push({
-            id: i,
-            cor: p.cor,
-            simbolo: p.simbolo,
+        fallback.push({
+            id: i, cor: p.cor, simbolo: p.simbolo,
             a: { r: i % tamanho, c: 1 },
             b: { r: i % tamanho, c: tamanho - 2 }
         });
     }
-    return paresFallback;
+    return fallback;
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDERIZAÇÃO E MECÂNICA DE JOGO
+// RENDERIZAÇÃO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -300,7 +296,11 @@ export function atualizarVisualDom() {
             const cell = $('cell-' + r + '-' + c);
             if (!cell) continue;
 
+            // Preserva classe trail-head, se existir
+            const tinhaCabeca = cell.classList.contains('trail-head');
             cell.className = 'cell grid-visible';
+            if (tinhaCabeca) cell.classList.add('trail-head');
+
             cell.style.removeProperty('--trail-color');
 
             const dado = estado.grid[r][c];
@@ -324,6 +324,9 @@ export function atualizarVisualDom() {
     }
 }
 
+// ────────────────────────────────────────────────────────────────
+// MECÂNICA DE JOGO
+// ────────────────────────────────────────────────────────────────
 function limparTrilhaNoGrid(trilhaObj) {
     if (!trilhaObj?.pontos) return;
     for (const p of trilhaObj.pontos) {
@@ -335,9 +338,7 @@ function limparTrilhaNoGrid(trilhaObj) {
 }
 
 function limparTodasAsTrilhas() {
-    for (const id in estado.trilhas) {
-        limparTrilhaNoGrid(estado.trilhas[id]);
-    }
+    for (const id in estado.trilhas) limparTrilhaNoGrid(estado.trilhas[id]);
     estado.trilhas = {};
 }
 
@@ -352,8 +353,19 @@ function snapshotTrilhas() {
     return snap;
 }
 
+// Exposto para o solver poder registar histórico antes de animar
+window.registarHistorico = () => {
+    estado.historico.push(snapshotTrilhas());
+};
+
+window.atualizarBotaoUndo = atualizarBotaoUndo;
+window.atualizarProgressoAnimacao = (pct) => {
+    const bar = document.getElementById('anim-progress-bar');
+    if (bar) bar.style.width = `${pct}%`;
+};
+
 function iniciarDesenho(r, c) {
-    if (estado.concluido) return false;
+    if (estado.concluido || animacaoEmAndamento()) return false;
 
     const dado = estado.grid[r][c];
     if (dado.tipo !== 'endpoint') return false;
@@ -385,7 +397,6 @@ function aplicarPasso(r, c) {
     const ultima = trail[trail.length - 1];
     if (ultima.r === r && ultima.c === c) return;
 
-    // Retroceder (voltar para a penúltima célula)
     if (trail.length >= 2) {
         const penultima = trail[trail.length - 2];
         if (penultima.r === r && penultima.c === c) {
@@ -403,7 +414,6 @@ function aplicarPasso(r, c) {
 
     const alvo = estado.grid[r][c];
 
-    // Fechar o par no endpoint correto
     if (alvo.tipo === 'endpoint' && alvo.parId === d.parId) {
         const inicio = trail[0];
         if (inicio.r === r && inicio.c === c && trail.length === 1) return;
@@ -422,7 +432,6 @@ function aplicarPasso(r, c) {
 
     if (alvo.tipo === 'endpoint') return;
 
-    // Atravessar trilha alheia: apaga-a
     if (alvo.tipo === 'trilha' && alvo.parId !== d.parId) {
         const alheia = estado.trilhas[alvo.parId];
         if (alheia) {
@@ -517,7 +526,7 @@ function desfazer() {
 }
 
 function darDica() {
-    if (estado.concluido) return;
+    if (estado.concluido || animacaoEmAndamento()) return;
 
     const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
     if (paresPendentes.length === 0) {
@@ -556,7 +565,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI, IAT E UTILITÁRIOS
+// UI
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -581,7 +590,6 @@ export function atualizarIAT(conectados) {
     const bonusTempo = Math.max(0, (tempoIdealEsperado - estado.segundos) * 5);
 
     const iat = fatorEspacial + pontosConexao + bonusTempo;
-
     const el = $('iq-display');
     if (el) {
         el.textContent = `IAT: ${iat}`;
@@ -651,9 +659,7 @@ export function verificarVitoria() {
 }
 
 function salvarLocal() {
-    try {
-        localStorage.setItem('brain_hub_pontos', String(estado.pontos));
-    } catch (_) { /* ignore */ }
+    try { localStorage.setItem('brain_hub_pontos', String(estado.pontos)); } catch (_) {}
 }
 
 async function sincronizarPontuacaoFirebase() {
@@ -674,7 +680,7 @@ async function sincronizarPontuacaoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// EVENTOS DE PONTEIRO E TOQUE
+// EVENTOS DE PONTEIRO
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
@@ -683,10 +689,7 @@ function getCellComTolerancia(clientX, clientY) {
     const el = document.elementFromPoint(clientX, clientY);
     const cell = el?.closest?.('.cell');
     if (cell) {
-        return {
-            r: parseInt(cell.dataset.r, 10),
-            c: parseInt(cell.dataset.c, 10)
-        };
+        return { r: parseInt(cell.dataset.r, 10), c: parseInt(cell.dataset.c, 10) };
     }
 
     const board = $('board');
@@ -704,12 +707,12 @@ function getCellComTolerancia(clientX, clientY) {
 }
 
 function onPointerDown(e) {
-    if (estado.concluido) return;
+    if (estado.concluido || animacaoEmAndamento()) return;
     if (activePointerId !== null) return;
     e.preventDefault();
 
     const board = $('board');
-    try { board?.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    try { board?.setPointerCapture(e.pointerId); } catch (_) {}
 
     const cell = getCellComTolerancia(e.clientX, e.clientY);
     if (!cell) return;
@@ -729,9 +732,7 @@ function onPointerMove(e) {
     for (const ev of eventos) {
         const cell = getCellComTolerancia(ev.clientX, ev.clientY);
         if (!cell) continue;
-        if (ultimaCellTocada && cell.r === ultimaCellTocada.r && cell.c === ultimaCellTocada.c) {
-            continue;
-        }
+        if (ultimaCellTocada && cell.r === ultimaCellTocada.r && cell.c === ultimaCellTocada.c) continue;
         ultimaCellTocada = cell;
         lidarComMovimento(cell.r, cell.c);
     }
@@ -739,9 +740,8 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
     if (e.pointerId !== activePointerId) return;
-
     const board = $('board');
-    try { board?.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    try { board?.releasePointerCapture(e.pointerId); } catch (_) {}
 
     finalizarDesenho();
     activePointerId = null;
@@ -751,9 +751,8 @@ function onPointerUp(e) {
 
 function onPointerCancel(e) {
     if (e.pointerId !== activePointerId) return;
-
     const board = $('board');
-    try { board?.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    try { board?.releasePointerCapture(e.pointerId); } catch (_) {}
 
     finalizarDesenho();
     activePointerId = null;
@@ -794,9 +793,7 @@ export function iniciarJogo(nivel) {
 
     estado.grid = Array.from({ length: estado.tamanho }, () =>
         Array.from({ length: estado.tamanho }, () => ({
-            tipo: 'vazio',
-            cor: null,
-            parId: null
+            tipo: 'vazio', cor: null, parId: null
         }))
     );
 
@@ -814,7 +811,7 @@ export function iniciarJogo(nivel) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// INICIALIZAÇÃO DA INTERFACE E BOTÕES
+// UI — BOTÕES
 // ────────────────────────────────────────────────────────────────
 function confirmarSeTemProgresso(mensagem) {
     const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
@@ -826,8 +823,7 @@ function registarBotaoLoginGoogle() {
     if (!btn) return;
     btn.onclick = async () => {
         try {
-            const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            await signInWithPopup(auth, new GoogleAuthProvider());
             mostrarToast('Autenticado com sucesso!');
         } catch (e) {
             console.warn(e);
@@ -852,31 +848,23 @@ function registarBotaoLoginAnonimo() {
 
 function registarFormularioEmail() {
     let modoRegisto = false;
-    const btnToggleMode = $('btn-toggle-mode');
-    const emailFormTitle = $('email-form-title');
-    const btnEmailSubmit = $('btn-email-submit');
+    const btnToggle = $('btn-toggle-mode');
+    const title = $('email-form-title');
+    const btnSubmit = $('btn-email-submit');
 
-    if (btnToggleMode) {
-        btnToggleMode.onclick = () => {
+    if (btnToggle) {
+        btnToggle.onclick = () => {
             modoRegisto = !modoRegisto;
-            if (emailFormTitle) {
-                emailFormTitle.textContent = modoRegisto
-                    ? 'Crie a sua nova conta:'
-                    : 'Ou entre com o seu E-mail:';
-            }
-            if (btnEmailSubmit) {
-                btnEmailSubmit.textContent = modoRegisto
-                    ? '📝 Registar e Entrar'
-                    : '🔑 Entrar com E-mail';
-            }
-            btnToggleMode.textContent = modoRegisto
+            if (title) title.textContent = modoRegisto ? 'Crie a sua nova conta:' : 'Ou entre com o seu E-mail:';
+            if (btnSubmit) btnSubmit.textContent = modoRegisto ? '📝 Registar e Entrar' : '🔑 Entrar com E-mail';
+            btnToggle.textContent = modoRegisto
                 ? 'Já tem conta? Clique aqui para entrar'
                 : 'Não tem conta? Clique aqui para se registar';
         };
     }
 
-    if (btnEmailSubmit) {
-        btnEmailSubmit.onclick = async () => {
+    if (btnSubmit) {
+        btnSubmit.onclick = async () => {
             const email = $('auth-email')?.value.trim() || '';
             const password = $('auth-password')?.value.trim() || '';
 
@@ -917,11 +905,9 @@ function registarBotaoResetScore() {
     if (!btn) return;
     btn.onclick = async () => {
         if (!confirm('Deseja zerar a pontuação e começar do zero?')) return;
-
         estado.pontos = 0;
         atualizarDisplayPontos();
         salvarLocal();
-
         if (estado.utilizador && !estado.utilizador.isAnonimo) {
             await sincronizarPontuacaoFirebase();
         }
@@ -945,9 +931,7 @@ function registarBotaoReset() {
     const btn = $('btn-reset');
     if (!btn) return;
     btn.onclick = () => {
-        if (!confirmarSeTemProgresso('Tem a certeza de que deseja reiniciar o nível atual?')) {
-            return;
-        }
+        if (!confirmarSeTemProgresso('Tem a certeza de que deseja reiniciar o nível atual?')) return;
         iniciarJogo(estado.nivel);
     };
 }
@@ -964,12 +948,48 @@ function registarBotaoUndo() {
 
 function registarBotaoAutoSolve() {
     const btn = $('btn-auto-solve');
+    const speedCtrl = $('speed-control');
+    const animProg = $('anim-progress');
+    const animBar = $('anim-progress-bar');
+    const rangeVel = $('range-vel');
+    const speedVal = $('speed-value');
+
+    if (rangeVel && speedVal) {
+        rangeVel.addEventListener('input', (e) => {
+            const v = Number(e.target.value);
+            speedVal.textContent = `${v}ms`;
+            setVelocidadeAnimacao(v);
+        });
+    }
+
     if (!btn) return;
-    btn.onclick = () => {
-        if (confirm('Deseja ver a solução automática deste nível?')) {
-            resolverNivelAutomaticamente();
+
+    btn.onclick = async () => {
+        if (animacaoEmAndamento()) {
+            cancelarAnimacao();
+            return;
+        }
+
+        speedCtrl && (speedCtrl.style.display = '');
+        animProg && animProg.classList.add('active');
+        btn.textContent = '⏹️ Cancelar';
+        btn.classList.add('cancelando');
+
+        try {
+            await resolverNivelAutomaticamente();
+        } finally {
+            speedCtrl && (speedCtrl.style.display = 'none');
+            animProg && animProg.classList.remove('active');
+            if (animBar) animBar.style.width = '0%';
+            btn.textContent = '🤖 Auto-Resolver';
+            btn.classList.remove('cancelando');
         }
     };
+
+    // Tecla Escape cancela
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && animacaoEmAndamento()) cancelarAnimacao();
+    });
 }
 
 function inicializarBotoesUI() {
