@@ -65,8 +65,10 @@
             transition: background 0.2s;
         }
 
-        .btn-small:hover {
-            background: #e2e8f0;
+        .btn-small:hover { background: #e2e8f0; }
+        .btn-small:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
         }
 
         .score-display, .user-info {
@@ -88,8 +90,14 @@
         .iq-display {
             font-size: 16px;
             font-weight: 800;
+            transition: color 0.3s;
         }
 
+        .iq-display.up {
+            color: #16a34a;
+        }
+
+        /* ─────────── TABULEIRO ─────────── */
         .board {
             display: grid;
             gap: 4px;
@@ -110,12 +118,33 @@
             position: relative;
             cursor: pointer;
             user-select: none;
+            transition:
+                background-color 120ms ease-out,
+                opacity 120ms ease-out,
+                box-shadow 180ms ease-out,
+                border-radius 120ms ease-out;
         }
 
         .cell.trail {
             background: var(--trail-color, #6366f1);
-            opacity: 0.35;
+            opacity: 0.55;
             border-radius: 4px;
+            box-shadow: 0 0 6px -2px var(--trail-color);
+        }
+
+        /* Cabeça da trilha: célula a ser desenhada neste instante */
+        .cell.trail.trail-head {
+            opacity: 0.9;
+            box-shadow:
+                0 0 0 1px var(--trail-color),
+                0 0 10px 2px var(--trail-color);
+            animation: trailPulse 380ms ease-out;
+        }
+
+        @keyframes trailPulse {
+            0%   { transform: scale(0.85); }
+            60%  { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         .endpoint {
@@ -127,14 +156,25 @@
             justify-content: center;
             font-weight: bold;
             color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 2;
+            transition: box-shadow 180ms ease-out, transform 180ms ease-out;
         }
 
         .endpoint.connected {
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 2px 6px rgba(0,0,0,0.3);
+            box-shadow:
+                0 0 0 3px rgba(255, 255, 255, 0.85),
+                0 2px 6px rgba(0, 0, 0, 0.3);
+            animation: endpointReach 420ms ease-out;
         }
 
+        @keyframes endpointReach {
+            0%   { transform: scale(1); }
+            45%  { transform: scale(1.18); }
+            100% { transform: scale(1); }
+        }
+
+        /* ─────────── CONTROLES ─────────── */
         .controls-row {
             display: flex;
             gap: 10px;
@@ -159,9 +199,7 @@
             transition: background 0.2s;
         }
 
-        .btn-main:hover {
-            background: var(--btn-hover);
-        }
+        .btn-main:hover { background: var(--btn-hover); }
 
         .action-buttons-group {
             display: flex;
@@ -178,7 +216,10 @@
             cursor: pointer;
             flex: 1;
             text-align: center;
+            transition: background 0.2s;
         }
+
+        .btn-secondary:hover { background: #fef3c7; }
 
         .btn-auto {
             background: #f0fdf4;
@@ -190,9 +231,68 @@
             cursor: pointer;
             flex: 1;
             text-align: center;
+            transition: background 0.2s, color 0.2s;
         }
 
-        /* MODAL DE AUTENTICAÇÃO */
+        .btn-auto:hover { background: #dcfce7; }
+
+        .btn-auto.cancelando {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+
+        /* ─────────── SLIDER DE VELOCIDADE ─────────── */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .speed-control label { white-space: nowrap; }
+
+        .speed-control input[type="range"] {
+            flex: 1;
+            accent-color: var(--btn-primary);
+            cursor: pointer;
+            height: 4px;
+        }
+
+        .speed-control .speed-value {
+            min-width: 42px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            color: var(--btn-primary);
+            font-weight: 700;
+        }
+
+        /* ─────────── BARRA DE PROGRESSO DA ANIMAÇÃO ─────────── */
+        .anim-progress {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 200ms;
+        }
+
+        .anim-progress.active { opacity: 1; }
+
+        .anim-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6366f1, #22c55e);
+            transition: width 80ms linear;
+        }
+
+        /* ─────────── MODAL DE AUTENTICAÇÃO ─────────── */
         .auth-overlay {
             position: fixed;
             top: 0;
@@ -254,9 +354,7 @@
             transition: background 0.2s;
         }
 
-        .btn-auth-google:hover {
-            background: #f8fafc;
-        }
+        .btn-auth-google:hover { background: #f8fafc; }
 
         .btn-auth-anon {
             background: #f1f5f9;
@@ -268,26 +366,41 @@
             color: #475569;
         }
 
-        /* TOAST */
+        /* ─────────── TOAST ─────────── */
         .toast {
             position: fixed;
             bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
             background: #0f172a;
             color: white;
             padding: 10px 20px;
             border-radius: 30px;
             font-size: 13px;
             font-weight: 600;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
             opacity: 0;
-            transform: translateY(20px);
             transition: all 0.3s ease;
             z-index: 1000;
             pointer-events: none;
+            max-width: 90vw;
+            text-align: center;
         }
+
         .toast.show {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ─────────── ACESSIBILIDADE ─────────── */
+        @media (prefers-reduced-motion: reduce) {
+            .cell,
+            .cell.trail,
+            .endpoint,
+            .endpoint.connected {
+                transition: none !important;
+                animation: none !important;
+            }
         }
     </style>
 </head>
@@ -313,6 +426,11 @@
         <!-- TABULEIRO -->
         <div class="board" id="board"></div>
 
+        <!-- BARRA DE PROGRESSO DA ANIMAÇÃO -->
+        <div class="anim-progress" id="anim-progress">
+            <div class="anim-progress-bar" id="anim-progress-bar"></div>
+        </div>
+
         <!-- CONTROLOS DE NÍVEL -->
         <div class="controls-row">
             <select id="select-nivel">
@@ -330,6 +448,13 @@
             <button class="btn-secondary" id="btn-hint">💡 Dica</button>
             <button class="btn-auto" id="btn-auto-solve">🤖 Auto-Resolver</button>
         </div>
+
+        <!-- CONTROLO DE VELOCIDADE DA ANIMAÇÃO -->
+        <div class="speed-control" id="speed-control" style="display: none;">
+            <label for="range-vel">🐢 Velocidade</label>
+            <input id="range-vel" type="range" min="5" max="300" value="45" step="5">
+            <span class="speed-value" id="speed-value">45ms</span>
+        </div>
     </div>
 
     <!-- MODAL DE AUTENTICAÇÃO -->
@@ -337,25 +462,25 @@
         <div class="auth-card">
             <h2>Brain Curves</h2>
             <p>Escolha como deseja entrar para salvar a sua pontuação:</p>
-            
+
             <button class="btn-auth-google" id="btn-login-google">
                 <span>🌐</span> Entrar com Conta Google
             </button>
-            
+
             <button class="btn-auth-anon" id="btn-login-anon">
                 👤 Jogar como Anónimo
             </button>
 
             <div style="margin: 12px 0; border-top: 1px solid var(--border-color); padding-top: 12px;">
                 <p style="font-size: 13px; margin-bottom: 8px;" id="email-form-title">Ou entre com o seu E-mail:</p>
-                
+
                 <input type="email" id="auth-email" placeholder="O seu e-mail" style="width: 100%; padding: 10px; border-radius: 10px; border: 1.5px solid var(--border-color); margin-bottom: 8px; font-size: 14px;">
                 <input type="password" id="auth-password" placeholder="Palavra-passe (mín. 6 caracteres)" style="width: 100%; padding: 10px; border-radius: 10px; border: 1.5px solid var(--border-color); margin-bottom: 10px; font-size: 14px;">
-                
+
                 <button class="btn-auth-anon" id="btn-email-submit" style="background: var(--btn-primary); color: white; margin-bottom: 8px; width: 100%;">
                     🔑 Entrar com E-mail
                 </button>
-                
+
                 <button id="btn-toggle-mode" style="background: transparent; border: none; color: var(--btn-primary); font-size: 12px; font-weight: 700; cursor: pointer; width: 100%;">
                     Não tem conta? Clique aqui para se registar
                 </button>
