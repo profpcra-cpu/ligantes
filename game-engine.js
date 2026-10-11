@@ -114,7 +114,7 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO ESTRATÉGICA (Contorno Máximo + Distância Máxima)
+// GERAÇÃO ESTRATÉGICA (Diagonal + Contorno Máximo + Distância Máxima)
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
     const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
@@ -208,17 +208,13 @@ export function gerarPares(tamanho, qtdPares) {
             let tentativasPar = 0;
 
             if (i === 0) {
-                const cantos = [
-                    { r: 0, c: 0 }, { r: 0, c: tamanho - 1 },
-                    { r: tamanho - 1, c: 0 }, { r: tamanho - 1, c: tamanho - 1 }
-                ];
-                a = cantos[0];
-                b = cantos[3];
+                a = { r: 0, c: 0 };
+                b = { r: tamanho - 1, c: tamanho - 1 };
                 caminho = encontrarCaminhoContornoMaximo(a, b, gridOcupado, tamanho);
             } else {
                 let melhorA = null, melhorB = null, maiorDist = -1;
                 
-                for (let t = 0; t < 40; t++) {
+                for (let t = 0; t < 50; t++) {
                     const candA = escolherCelulaLivreAleatoria(gridOcupado, tamanho);
                     const candB = escolherCelulaLivreAleatoria(gridOcupado, tamanho);
                     if (!candA || !candB) continue;
@@ -256,11 +252,19 @@ export function gerarPares(tamanho, qtdPares) {
         }
     }
 
-    // Fallback seguro caso esgote as tentativas
+    // Fallback inteligente em ziguezague/diagonal cruzada
     const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        paresFallback.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 0 }, b: { r: i % tamanho, c: tamanho - 1 } });
+        const r1 = Math.min(i, tamanho - 1);
+        const r2 = Math.max(0, tamanho - 1 - i);
+        paresFallback.push({ 
+            id: i, 
+            cor: p.cor, 
+            simbolo: p.simbolo, 
+            a: { r: r1, c: 1 }, 
+            b: { r: r2, c: tamanho - 2 } 
+        });
     }
     return paresFallback;
 }
