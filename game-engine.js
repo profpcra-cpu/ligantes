@@ -9,6 +9,7 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { tocarSom } from "./audio.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -338,6 +339,7 @@ function aplicarPasso(r, c) {
         estado.desenhando = null;
 
         vibrar(15);
+        tocarSom('par'); // 🎵 Som de sucesso ao ligar o par
         atualizarVisualDom();
         atualizarProgresso();
         verificarVitoria();
@@ -445,6 +447,7 @@ function desfazer() {
     estado.concluido = false;
     estado.desenhando = null;
     vibrar(10);
+    tocarSom('erro'); // 🎵 Som subtil ao desfazer
     atualizarVisualDom();
     atualizarBotaoUndo();
     atualizarProgresso();
@@ -478,6 +481,7 @@ function darDica() {
     });
 
     vibrar(20);
+    tocarSom('par');
     atualizarVisualDom();
     atualizarBotaoUndo();
     atualizarProgresso();
@@ -567,6 +571,7 @@ function verificarVitoria() {
     atualizarIQ(estado.pares.length);
 
     vibrar([30, 50, 30]);
+    tocarSom('vitoria'); // 🎵 Toca o som de vitória do nível
     mostrarToast(`🎉 Nível ${estado.nivel} completo! +${ganho} pts`);
 
     atualizarBotaoUndo();
