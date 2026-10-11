@@ -49,7 +49,6 @@ const estado = {
     segundos: 0,
     timer: null,
     concluido: false,
-    inicioIQ: 90,
     utilizador: null
 };
 
@@ -160,7 +159,6 @@ export function gerarPares(tamanho, qtdPares) {
         const paresCandidatos = [];
         let geracaoComSucesso = true;
 
-        // Deixamos a linha/coluna 0 e a última linha/coluna livres para servir de "corredor de contorno"
         const margemMin = tamanho > 6 ? 1 : 0;
         const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
 
@@ -171,7 +169,6 @@ export function gerarPares(tamanho, qtdPares) {
             }
         }
 
-        // Embaralhar células
         for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponiveis[j], celulasDisponiveis[i]];
@@ -225,7 +222,6 @@ export function gerarPares(tamanho, qtdPares) {
         }
     }
 
-    // Fallback seguro em grelha
     const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
@@ -491,7 +487,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI E UTILITÁRIOS
+// UI, MÉTRICA DE AGILIDADE TOPOLÓGICA (IAT) E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -504,20 +500,30 @@ function atualizarBotaoUndo() {
     }
 }
 
-function atualizarIQ(conectados) {
-    const total = estado.pares.length;
-    const base = estado.inicioIQ;
-    const porPar = 10;
-    const bonus = conectados === total ? 10 : 0;
-    const iq = base + conectados * porPar + bonus;
-    const el = $('iq-display');
+function atualizarIAT(conectados) {
+    const totalPares = estado.pares.length;
+    const fatorEspacial = estado.tamanho * 15;
+    const pontosConexao = conectados * 25;
+    const tempoIdealEsperado = totalPares * 4;
+    const bonusTempo = Math.max(0, (tempoIdealEsperado - estado.segundos) * 5);
+    
+    const iat = fatorEspacial + pontosConexao + bonusTempo;
+    
+    const el = $('iq-display'); // Mantém o elemento visual do DOM atualizado
     if (el) {
-        el.textContent = `IQ = ${iq}`;
+        // Determina o título topológico com base no IAT acumulado
+        let tituloPercurso = "Explorador de Trilha";
+        if (iat > 500) tituloPercurso = "Arquiteto de Fluxos";
+        else if (iat > 300) tituloPercurso = "Navegador Sináptico";
+        else if (iat > 150) tituloPercurso = "Cartógrafo Urbano";
+
+        el.textContent = `IAT: ${iat} (${tituloPercurso})`;
         if (conectados > 0) {
             el.classList.add('up');
             setTimeout(() => el.classList.remove('up'), 400);
         }
     }
+    return iat;
 }
 
 function atualizarTimer() {
@@ -559,7 +565,10 @@ function vibrar(ms) {
 }
 
 function verificarVitoria() {
-    if (Object.keys(estado.trilhas).length !== estado.pares.length) return;
+    const conectados = Object.keys(estado.trilhas).length;
+    atualizarIAT(conectados);
+
+    if (conectados !== estado.pares.length) return;
 
     estado.concluido = true;
     pararTimer();
@@ -569,7 +578,6 @@ function verificarVitoria() {
     estado.pontos += ganho;
 
     if ($('display-pontos'))$('display-pontos').textContent = `Pontos: ${estado.pontos}`;
-    atualizarIQ(estado.pares.length);
 
     vibrar([30, 50, 30]);
     tocarSom('vitoria');
@@ -707,7 +715,6 @@ export function iniciarJogo(nivel) {
     estado.historico = [];
     estado.desenhando = null;
     estado.concluido = false;
-    estado.inicioIQ = 90;
     activePointerId = null;
     ultimaCellTocada = null;
 
@@ -722,7 +729,7 @@ export function iniciarJogo(nivel) {
 
     montarBoard();
     atualizarVisualDom();
-    atualizarIQ(0);
+    atualizarIAT(0);
     atualizarProgresso();
     atualizarBotaoUndo();
     iniciarTimer();
@@ -732,7 +739,6 @@ export function iniciarJogo(nivel) {
 // LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
 // ────────────────────────────────────────────────────────────────
 function inicializarBotoesUI() {
-    // Google Auth
     const btnGoogle = $('btn-login-google');
     if (btnGoogle) {
         btnGoogle.onclick = async () => {
@@ -747,7 +753,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // Anónimo Auth
     const btnAnon = $('btn-login-anon');
     if (btnAnon) {
         btnAnon.onclick = async () => {
@@ -760,7 +765,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // E-mail Auth & Registo Toggle
     let modoRegisto = false;
     const btnToggleMode = $('btn-toggle-mode');
     const emailFormTitle = $('email-form-title');
@@ -806,7 +810,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // Logout / Switch User
     const btnSwitch = $('btn-switch-user');
     if (btnSwitch) {
         btnSwitch.onclick = async () => {
@@ -817,7 +820,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // Reset Score
     const btnResetScore = $('btn-reset-score');
     if (btnResetScore) {
         btnResetScore.onclick = async () => {
@@ -834,7 +836,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // Seletor de Nível
     const selectNivel = $('select-nivel');
     if (selectNivel) {
         selectNivel.onchange = (e) => {
@@ -847,7 +848,6 @@ function inicializarBotoesUI() {
         };
     }
 
-    // Botões de Jogo
     const btnReset = $('btn-reset');
     if (btnReset) {
         btnReset.onclick = () => {
@@ -866,7 +866,6 @@ function inicializarBotoesUI() {
     if (btnUndo) btnUndo.onclick = desfazer;
 }
 
-// Inicialização imediata ao carregar o módulo
 inicializarBotoesUI();
 verificarSessaoInicial();
 iniciarJogo(5);
