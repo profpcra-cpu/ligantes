@@ -1,15 +1,16 @@
 import { db, auth } from "./firebase-config.js";
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { 
-    signInAnonymously, 
-    GoogleAuthProvider, 
-    signInWithPopup, 
-    signOut, 
-    onAuthStateChanged, 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword 
+import {
+    signInAnonymously,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { tocarSom } from "./audio.js";
+import { resolverNivelAutomaticamente } from "./solver.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -29,16 +30,21 @@ export const PALETA = [
     { cor: '#0ea5e9', simbolo: '❄' }
 ];
 
-const CONFIG_NIVEIS = {
+const CONFIG_NIVEIS = Object.freeze({
     1: { tamanho: 6, pares: 3 },
     2: { tamanho: 8, pares: 5 },
     3: { tamanho: 10, pares: 7 },
     4: { tamanho: 11, pares: 9 },
     5: { tamanho: 12, pares: 12 }
-};
+});
 
-const estado = {
-    nivel: 5,
+const NIVEL_PADRAO = 5;
+const MAX_TENTATIVAS_GERACAO = 150;
+const MAX_TENTATIVAS_PAR = 20;
+const TOAST_DURATION_MS = 2400;
+
+export const estado = {
+    nivel: NIVEL_PADRAO,
     tamanho: 12,
     grid: [],
     pares: [],
@@ -49,22 +55,39 @@ const estado = {
     segundos: 0,
     timer: null,
     concluido: false,
-    inicioIQ: 90,
     utilizador: null
 };
 
 const $ = (id) => document.getElementById(id);
 
 // ────────────────────────────────────────────────────────────────
+// UTILITÁRIOS GENÉRICOS
+// ────────────────────────────────────────────────────────────────
+function shuffleInPlace(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function vibrar(ms) {
+    if (navigator.vibrate) {
+        try { navigator.vibrate(ms); } catch (_) { /* ignore */ }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
 // AUTENTICAÇÃO E GESTÃO DE UTILIZADOR
 // ────────────────────────────────────────────────────────────────
 function verificarSessaoInicial() {
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, (user) => {
+        const modal = $('auth-modal');
         if (user) {
-            if ($('auth-modal'))$('auth-modal').classList.remove('active');
+            if (modal) modal.classList.remove('active');
             configurarSessao(user);
         } else {
-            if ($('auth-modal'))$('auth-modal').classList.add('active');
+            if (modal) modal.classList.add('active');
         }
     });
 }
@@ -72,7 +95,7 @@ function verificarSessaoInicial() {
 async function configurarSessao(user) {
     const isAnon = user.isAnonymous;
     const emailStr = user.email || (isAnon ? "Anónimo" : "utilizador@google.com");
-    
+
     estado.utilizador = {
         uid: user.uid,
         email: emailStr,
@@ -80,71 +103,78 @@ async function configurarSessao(user) {
         isAnonimo: isAnon
     };
 
-    if ($('user-display')) {$('user-display').textContent = isAnon ? "👤 Anónimo" : emailStr.split('@')[0];
+    const display = $('user-display');
+    if (display) {
+        display.textContent = isAnon ? "👤 Anónimo" : emailStr.split('@')[0];
     }
     await carregarPontosDoFirebase();
 }
 
 async function carregarPontosDoFirebase() {
-    if (!estado.utilizador || estado.utilizador.isAnonimo) {
+    const utilizador = estado.utilizador;
+
+    // Utilizadores anónimos ou não autenticados usam localStorage
+    if (!utilizador || utilizador.isAnonimo) {
         try {
             const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
             if (!isNaN(p)) {
                 estado.pontos = p;
-                if ($('display-pontos'))$('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+                atualizarDisplayPontos();
             }
-        } catch (_) {}
+        } catch (_) { /* ignore */ }
         return;
     }
 
     try {
-        const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
+        const userRef = ref(db, 'jogadores/' + utilizador.uid);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
             const data = snapshot.val();
             if (typeof data.pontos === 'number') {
                 estado.pontos = data.pontos;
-                if ($('display-pontos'))$('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+                atualizarDisplayPontos();
                 salvarLocal();
             }
         }
     } catch (e) {
-        console.warn("Erro ao ler dados da nuvem.");
+        console.warn("Erro ao ler dados da nuvem.", e);
     }
 }
 
+function atualizarDisplayPontos() {
+    const el = $('display-pontos');
+    if (el) el.textContent = `Pontos: ${estado.pontos}`;
+}
+
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO GARANTIDA COM MARGEM DE CONTORNO
+// GERAÇÃO DE PARES
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
-    const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
-    for (let i = dirs.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
-    }
-    return dirs.map(d => ({ r: r + d.r, c: c + d.c }))
-               .filter(p => p.r >= 0 && p.r < tamanho && p.c >= 0 && p.c < tamanho);
+    const dirs = shuffleInPlace([
+        { r: -1, c: 0 },
+        { r: 1, c: 0 },
+        { r: 0, c: -1 },
+        { r: 0, c: 1 }
+    ]);
+    return dirs
+        .map(d => ({ r: r + d.r, c: c + d.c }))
+        .filter(p => p.r >= 0 && p.r < tamanho && p.c >= 0 && p.c < tamanho);
 }
 
 function encontrarCaminhoAleatorio(inicio, fim, gridOcupado, tamanho, maxPassos) {
     const fila = [[inicio]];
-    const visitados = new Set();
-    visitados.add(`${inicio.r},${inicio.c}`);
+    const visitados = new Set([`${inicio.r},${inicio.c}`]);
 
     while (fila.length > 0) {
         const caminho = fila.shift();
         const atual = caminho[caminho.length - 1];
 
-        if (atual.r === fim.r && atual.c === fim.c) {
-            return caminho;
-        }
-
+        if (atual.r === fim.r && atual.c === fim.c) return caminho;
         if (caminho.length > maxPassos) continue;
 
-        const vizinhos = obterVizinhosEmbaralhados(atual.r, atual.c, tamanho);
-        for (const viz of vizinhos) {
+        for (const viz of obterVizinhosEmbaralhados(atual.r, atual.c, tamanho)) {
             const chave = `${viz.r},${viz.c}`;
-            const ehFim = (viz.r === fim.r && viz.c === fim.c);
+            const ehFim = viz.r === fim.r && viz.c === fim.c;
             if (!visitados.has(chave) && (!gridOcupado[viz.r][viz.c] || ehFim)) {
                 visitados.add(chave);
                 fila.push([...caminho, viz]);
@@ -154,92 +184,96 @@ function encontrarCaminhoAleatorio(inicio, fim, gridOcupado, tamanho, maxPassos)
     return null;
 }
 
-export function gerarPares(tamanho, qtdPares) {
-    for (let tentativa = 0; tentativa < 150; tentativa++) {
-        const gridOcupado = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
-        const paresCandidatos = [];
-        let geracaoComSucesso = true;
-
-        // Deixamos a linha/coluna 0 e a última linha/coluna livres para servir de "corredor de contorno"
-        const margemMin = tamanho > 6 ? 1 : 0;
-        const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
-
-        const celulasDisponiveis = [];
-        for (let r = margemMin; r <= margemMax; r++) {
-            for (let c = margemMin; c <= margemMax; c++) {
-                celulasDisponiveis.push({ r, c });
-            }
-        }
-
-        // Embaralhar células
-        for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponiveis[j], celulasDisponiveis[i]];
-        }
-
-        for (let i = 0; i < qtdPares; i++) {
-            if (celulasDisponiveis.length < 2) {
-                geracaoComSucesso = false;
-                break;
-            }
-
-            let a = null, b = null, caminho = null;
-            let tentativasPar = 0;
-
-            while (tentativasPar < 20 && !caminho) {
-                if (celulasDisponiveis.length < 2) break;
-                a = celulasDisponiveis.pop();
-                b = celulasDisponiveis.pop();
-
-                if (gridOcupado[a.r][a.c] || gridOcupado[b.r][b.c]) continue;
-
-                const dist = Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
-                if (dist < 2) {
-                    celulasDisponiveis.unshift(b);
-                    tentativasPar++;
-                    continue;
-                }
-
-                caminho = encontrarCaminhoAleatorio(a, b, gridOcupado, tamanho, tamanho * 2);
-                if (!caminho) {
-                    celulasDisponiveis.unshift(b);
-                }
-                tentativasPar++;
-            }
-
-            if (!caminho) {
-                geracaoComSucesso = false;
-                break;
-            }
-
-            caminho.forEach(p => {
-                gridOcupado[p.r][p.c] = true;
-            });
-
-            const pInfo = PALETA[i % PALETA.length];
-            paresCandidatos.push({ id: i, cor: pInfo.cor, simbolo: pInfo.simbolo, a, b });
-        }
-
-        if (geracaoComSucesso && paresCandidatos.length === qtdPares) {
-            return paresCandidatos;
+function construirCelulasDisponiveis(tamanho) {
+    const margemMin = tamanho > 6 ? 1 : 0;
+    const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
+    const celulas = [];
+    for (let r = margemMin; r <= margemMax; r++) {
+        for (let c = margemMin; c <= margemMax; c++) {
+            celulas.push({ r, c });
         }
     }
+    return shuffleInPlace(celulas);
+}
 
-    // Fallback seguro em grelha
+function tentarGerarPares(tamanho, qtdPares) {
+    const gridOcupado = Array.from({ length: tamanho }, () => Array(tamanho).fill(false));
+    const celulasDisponiveis = construirCelulasDisponiveis(tamanho);
+    const paresCandidatos = [];
+
+    for (let i = 0; i < qtdPares; i++) {
+        if (celulasDisponiveis.length < 2) return null;
+
+        let caminho = null;
+        let tentativasPar = 0;
+
+        while (tentativasPar < MAX_TENTATIVAS_PAR && !caminho) {
+            if (celulasDisponiveis.length < 2) break;
+
+            const a = celulasDisponiveis.pop();
+            const b = celulasDisponiveis.pop();
+
+            if (gridOcupado[a.r][a.c] || gridOcupado[b.r][b.c]) continue;
+
+            const dist = Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+            if (dist < 2) {
+                celulasDisponiveis.unshift(b);
+                tentativasPar++;
+                continue;
+            }
+
+            const c = encontrarCaminhoAleatorio(a, b, gridOcupado, tamanho, tamanho * 2);
+            if (c) {
+                caminho = c;
+                caminho.forEach(p => { gridOcupado[p.r][p.c] = true; });
+                const pInfo = PALETA[i % PALETA.length];
+                paresCandidatos.push({
+                    id: i,
+                    cor: pInfo.cor,
+                    simbolo: pInfo.simbolo,
+                    a,
+                    b
+                });
+            } else {
+                celulasDisponiveis.unshift(b);
+            }
+            tentativasPar++;
+        }
+
+        if (!caminho) return null;
+    }
+
+    return paresCandidatos;
+}
+
+export function gerarPares(tamanho, qtdPares) {
+    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_GERACAO; tentativa++) {
+        const resultado = tentarGerarPares(tamanho, qtdPares);
+        if (resultado && resultado.length === qtdPares) return resultado;
+    }
+
+    console.warn("Geração de pares falhou — usando fallback.");
     const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        paresFallback.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 1 }, b: { r: i % tamanho, c: tamanho - 2 } });
+        paresFallback.push({
+            id: i,
+            cor: p.cor,
+            simbolo: p.simbolo,
+            a: { r: i % tamanho, c: 1 },
+            b: { r: i % tamanho, c: tamanho - 2 }
+        });
     }
     return paresFallback;
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDER E MECÂNICA DE JOGO
+// RENDERIZAÇÃO E MECÂNICA DE JOGO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
     if (!board) return;
+
     const n = estado.tamanho;
     board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
     board.style.gridTemplateRows = `repeat(${n}, 1fr)`;
@@ -259,7 +293,7 @@ function montarBoard() {
     board.appendChild(fragment);
 }
 
-function atualizarVisualDom() {
+export function atualizarVisualDom() {
     const n = estado.tamanho;
     for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
@@ -270,12 +304,14 @@ function atualizarVisualDom() {
             cell.style.removeProperty('--trail-color');
 
             const dado = estado.grid[r][c];
+
             if (dado.tipo === 'endpoint') {
                 const par = estado.pares[dado.parId];
                 const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
-                let html = `<div class="endpoint${conectado}" style="background:${dado.cor}; color:${dado.cor}">`;
-                html += `<span class="symbol">${par?.simbolo || ''}</span>`;
-                html += `</div>`;
+                const html =
+                    `<div class="endpoint${conectado}" style="background:${dado.cor}; color:${dado.cor}">` +
+                    `<span class="symbol">${par?.simbolo || ''}</span>` +
+                    `</div>`;
                 if (cell.innerHTML !== html) cell.innerHTML = html;
             } else if (dado.tipo === 'trilha') {
                 cell.classList.add('trail');
@@ -288,8 +324,37 @@ function atualizarVisualDom() {
     }
 }
 
+function limparTrilhaNoGrid(trilhaObj) {
+    if (!trilhaObj?.pontos) return;
+    for (const p of trilhaObj.pontos) {
+        const g = estado.grid[p.r]?.[p.c];
+        if (g && g.tipo === 'trilha') {
+            estado.grid[p.r][p.c] = { tipo: 'vazio', cor: null, parId: null };
+        }
+    }
+}
+
+function limparTodasAsTrilhas() {
+    for (const id in estado.trilhas) {
+        limparTrilhaNoGrid(estado.trilhas[id]);
+    }
+    estado.trilhas = {};
+}
+
+function snapshotTrilhas() {
+    const snap = {};
+    for (const id in estado.trilhas) {
+        snap[id] = {
+            cor: estado.trilhas[id].cor,
+            pontos: estado.trilhas[id].pontos.map(p => ({ r: p.r, c: p.c }))
+        };
+    }
+    return snap;
+}
+
 function iniciarDesenho(r, c) {
     if (estado.concluido) return false;
+
     const dado = estado.grid[r][c];
     if (dado.tipo !== 'endpoint') return false;
 
@@ -299,7 +364,12 @@ function iniciarDesenho(r, c) {
     }
 
     estado.historico.push(snapshotTrilhas());
-    estado.desenhando = { parId: dado.parId, cor: dado.cor, pontos: [{ r, c }] };
+    estado.desenhando = {
+        parId: dado.parId,
+        cor: dado.cor,
+        pontos: [{ r, c }]
+    };
+
     vibrar(8);
     atualizarVisualDom();
     atualizarBotaoUndo();
@@ -315,6 +385,7 @@ function aplicarPasso(r, c) {
     const ultima = trail[trail.length - 1];
     if (ultima.r === r && ultima.c === c) return;
 
+    // Retroceder (voltar para a penúltima célula)
     if (trail.length >= 2) {
         const penultima = trail[trail.length - 2];
         if (penultima.r === r && penultima.c === c) {
@@ -331,6 +402,8 @@ function aplicarPasso(r, c) {
     if (dist !== 1) return;
 
     const alvo = estado.grid[r][c];
+
+    // Fechar o par no endpoint correto
     if (alvo.tipo === 'endpoint' && alvo.parId === d.parId) {
         const inicio = trail[0];
         if (inicio.r === r && inicio.c === c && trail.length === 1) return;
@@ -349,6 +422,7 @@ function aplicarPasso(r, c) {
 
     if (alvo.tipo === 'endpoint') return;
 
+    // Atravessar trilha alheia: apaga-a
     if (alvo.tipo === 'trilha' && alvo.parId !== d.parId) {
         const alheia = estado.trilhas[alvo.parId];
         if (alheia) {
@@ -365,10 +439,12 @@ function aplicarPasso(r, c) {
 
 function lidarComMovimento(rAlvo, cAlvo) {
     if (!estado.desenhando || estado.concluido) return;
+
     let guard = 0;
     while (guard++ < 64) {
         const trail = estado.desenhando?.pontos;
         if (!trail) return;
+
         const ultima = trail[trail.length - 1];
         if (ultima.r === rAlvo && ultima.c === cAlvo) return;
 
@@ -382,7 +458,7 @@ function lidarComMovimento(rAlvo, cAlvo) {
 
         const dr = rAlvo - ultima.r;
         const dc = cAlvo - ultima.c;
-        const passo = (Math.abs(dr) >= Math.abs(dc))
+        const passo = Math.abs(dr) >= Math.abs(dc)
             ? { r: ultima.r + Math.sign(dr), c: ultima.c }
             : { r: ultima.r, c: ultima.c + Math.sign(dc) };
 
@@ -395,50 +471,35 @@ function lidarComMovimento(rAlvo, cAlvo) {
 
 function finalizarDesenho() {
     if (!estado.desenhando) return;
+
     estado.desenhando.pontos.forEach((p, idx) => {
         if (idx === 0) return;
         if (estado.grid[p.r][p.c].tipo === 'trilha') {
             estado.grid[p.r][p.c] = { tipo: 'vazio', cor: null, parId: null };
         }
     });
+
     estado.desenhando = null;
     atualizarVisualDom();
 }
 
-function limparTrilhaNoGrid(trilhaObj) {
-    if (!trilhaObj || !trilhaObj.pontos) return;
-    trilhaObj.pontos.forEach(p => {
-        const g = estado.grid[p.r]?.[p.c];
-        if (g && g.tipo === 'trilha') {
-            estado.grid[p.r][p.c] = { tipo: 'vazio', cor: null, parId: null };
-        }
-    });
-}
-
-function snapshotTrilhas() {
-    const snap = {};
-    for (const id in estado.trilhas) {
-        snap[id] = {
-            cor: estado.trilhas[id].cor,
-            pontos: estado.trilhas[id].pontos.map(p => ({ r: p.r, c: p.c }))
-        };
-    }
-    return snap;
-}
-
 function desfazer() {
     if (estado.historico.length === 0) return;
-    for (const id in estado.trilhas) limparTrilhaNoGrid(estado.trilhas[id]);
-    estado.trilhas = {};
+
+    limparTodasAsTrilhas();
 
     const snap = estado.historico.pop();
     for (const id in snap) {
         estado.trilhas[id] = snap[id];
         const parIdInt = parseInt(id, 10);
         const par = estado.pares.find(p => p.id === parIdInt);
+
         snap[id].pontos.forEach((p, idx) => {
             if (idx === 0) return;
-            const ehEndpoint = par && ((par.a.r === p.r && par.a.c === p.c) || (par.b.r === p.r && par.b.c === p.c));
+            const ehEndpoint = par && (
+                (par.a.r === p.r && par.a.c === p.c) ||
+                (par.b.r === p.r && par.b.c === p.c)
+            );
             if (!ehEndpoint) {
                 estado.grid[p.r][p.c] = { tipo: 'trilha', cor: snap[id].cor, parId: parIdInt };
             }
@@ -447,6 +508,7 @@ function desfazer() {
 
     estado.concluido = false;
     estado.desenhando = null;
+
     vibrar(10);
     tocarSom('erro');
     atualizarVisualDom();
@@ -456,6 +518,7 @@ function desfazer() {
 
 function darDica() {
     if (estado.concluido) return;
+
     const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
     if (paresPendentes.length === 0) {
         mostrarToast('Todos os pares já estão ligados!');
@@ -463,12 +526,14 @@ function darDica() {
     }
 
     const parAlvo = paresPendentes[0];
+
     if (estado.trilhas[parAlvo.id]) {
         limparTrilhaNoGrid(estado.trilhas[parAlvo.id]);
         delete estado.trilhas[parAlvo.id];
     }
 
     estado.historico.push(snapshotTrilhas());
+
     const pontosDica = [parAlvo.a];
     if (parAlvo.a.r !== parAlvo.b.r) {
         pontosDica.push({ r: parAlvo.b.r, c: parAlvo.a.c });
@@ -491,39 +556,48 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI E UTILITÁRIOS
+// UI, IAT E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
     const feitos = Object.keys(estado.trilhas).length;
-    if ($('progress-display'))$('progress-display').textContent = `${feitos} / ${total} pares`;
+    const el = $('progress-display');
+    if (el) el.textContent = `${feitos} / ${total} pares`;
 }
 
 function atualizarBotaoUndo() {
-    if ($('btn-undo')) {$('btn-undo').disabled = estado.historico.length === 0 && Object.keys(estado.trilhas).length === 0;
-    }
+    const btn = $('btn-undo');
+    if (!btn) return;
+    const temHistorico = estado.historico.length > 0;
+    const temTrilhas = Object.keys(estado.trilhas).length > 0;
+    btn.disabled = !temHistorico && !temTrilhas;
 }
 
-function atualizarIQ(conectados) {
-    const total = estado.pares.length;
-    const base = estado.inicioIQ;
-    const porPar = 10;
-    const bonus = conectados === total ? 10 : 0;
-    const iq = base + conectados * porPar + bonus;
+export function atualizarIAT(conectados) {
+    const totalPares = estado.pares.length;
+    const fatorEspacial = estado.tamanho * 15;
+    const pontosConexao = conectados * 25;
+    const tempoIdealEsperado = totalPares * 4;
+    const bonusTempo = Math.max(0, (tempoIdealEsperado - estado.segundos) * 5);
+
+    const iat = fatorEspacial + pontosConexao + bonusTempo;
+
     const el = $('iq-display');
     if (el) {
-        el.textContent = `IQ = ${iq}`;
+        el.textContent = `IAT: ${iat}`;
         if (conectados > 0) {
             el.classList.add('up');
             setTimeout(() => el.classList.remove('up'), 400);
         }
     }
+    return iat;
 }
 
 function atualizarTimer() {
     const m = String(Math.floor(estado.segundos / 60)).padStart(2, '0');
     const s = String(estado.segundos % 60).padStart(2, '0');
-    if ($('timer-display'))$('timer-display').textContent = `${m}:${s}`;
+    const el = $('timer-display');
+    if (el) el.textContent = `${m}:${s}`;
 }
 
 function iniciarTimer() {
@@ -543,23 +617,20 @@ function pararTimer() {
 }
 
 let toastTimeout = null;
-function mostrarToast(msg) {
+export function mostrarToast(msg) {
     const el = $('toast');
     if (!el) return;
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => el.classList.remove('show'), 2400);
+    toastTimeout = setTimeout(() => el.classList.remove('show'), TOAST_DURATION_MS);
 }
 
-function vibrar(ms) {
-    if (navigator.vibrate) {
-        try { navigator.vibrate(ms); } catch (_) {}
-    }
-}
+export function verificarVitoria() {
+    const conectados = Object.keys(estado.trilhas).length;
+    atualizarIAT(conectados);
 
-function verificarVitoria() {
-    if (Object.keys(estado.trilhas).length !== estado.pares.length) return;
+    if (conectados !== estado.pares.length) return;
 
     estado.concluido = true;
     pararTimer();
@@ -568,8 +639,7 @@ function verificarVitoria() {
     const ganho = estado.nivel * 50 + bonusTempo * 2;
     estado.pontos += ganho;
 
-    if ($('display-pontos'))$('display-pontos').textContent = `Pontos: ${estado.pontos}`;
-    atualizarIQ(estado.pares.length);
+    atualizarDisplayPontos();
 
     vibrar([30, 50, 30]);
     tocarSom('vitoria');
@@ -581,11 +651,14 @@ function verificarVitoria() {
 }
 
 function salvarLocal() {
-    try { localStorage.setItem('brain_hub_pontos', String(estado.pontos)); } catch (_) {}
+    try {
+        localStorage.setItem('brain_hub_pontos', String(estado.pontos));
+    } catch (_) { /* ignore */ }
 }
 
 async function sincronizarPontuacaoFirebase() {
     if (!estado.utilizador || estado.utilizador.isAnonimo) return;
+
     try {
         const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
         await set(userRef, {
@@ -595,30 +668,37 @@ async function sincronizarPontuacaoFirebase() {
             nivelAtual: estado.nivel,
             ultimaAtividade: new Date().toISOString()
         });
-    } catch (e) {}
+    } catch (e) {
+        console.warn("Erro ao sincronizar com a nuvem.", e);
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
-// INPUTS DE TOQUE (POINTER EVENTS)
+// EVENTOS DE PONTEIRO E TOQUE
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
 
 function getCellComTolerancia(clientX, clientY) {
     const el = document.elementFromPoint(clientX, clientY);
-    if (!el) return null;
-    const cell = el.closest?.('.cell');
+    const cell = el?.closest?.('.cell');
     if (cell) {
-        return { r: parseInt(cell.dataset.r, 10), c: parseInt(cell.dataset.c, 10) };
+        return {
+            r: parseInt(cell.dataset.r, 10),
+            c: parseInt(cell.dataset.c, 10)
+        };
     }
+
     const board = $('board');
     if (!board) return null;
+
     const rect = board.getBoundingClientRect();
     const n = estado.tamanho;
     const cellW = rect.width / n;
     const cellH = rect.height / n;
     const c = Math.floor((clientX - rect.left) / cellW);
     const r = Math.floor((clientY - rect.top) / cellH);
+
     if (r < 0 || r >= n || c < 0 || c >= n) return null;
     return { r, c };
 }
@@ -629,9 +709,7 @@ function onPointerDown(e) {
     e.preventDefault();
 
     const board = $('board');
-    if (board) {
-        try { board.setPointerCapture(e.pointerId); } catch (_) {}
-    }
+    try { board?.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
 
     const cell = getCellComTolerancia(e.clientX, e.clientY);
     if (!cell) return;
@@ -651,7 +729,9 @@ function onPointerMove(e) {
     for (const ev of eventos) {
         const cell = getCellComTolerancia(ev.clientX, ev.clientY);
         if (!cell) continue;
-        if (ultimaCellTocada && cell.r === ultimaCellTocada.r && cell.c === ultimaCellTocada.c) continue;
+        if (ultimaCellTocada && cell.r === ultimaCellTocada.r && cell.c === ultimaCellTocada.c) {
+            continue;
+        }
         ultimaCellTocada = cell;
         lidarComMovimento(cell.r, cell.c);
     }
@@ -659,10 +739,10 @@ function onPointerMove(e) {
 
 function onPointerUp(e) {
     if (e.pointerId !== activePointerId) return;
+
     const board = $('board');
-    if (board) {
-        try { board.releasePointerCapture(e.pointerId); } catch (_) {}
-    }
+    try { board?.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+
     finalizarDesenho();
     activePointerId = null;
     ultimaCellTocada = null;
@@ -671,18 +751,20 @@ function onPointerUp(e) {
 
 function onPointerCancel(e) {
     if (e.pointerId !== activePointerId) return;
+
     const board = $('board');
-    if (board) {
-        try { board.releasePointerCapture(e.pointerId); } catch (_) {}
-    }
+    try { board?.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+
     finalizarDesenho();
     activePointerId = null;
     ultimaCellTocada = null;
     atualizarBotaoUndo();
 }
 
-const board = $('board');
-if (board) {
+function registarEventosBoard() {
+    const board = $('board');
+    if (!board) return;
+
     board.addEventListener('pointerdown', onPointerDown, { passive: false });
     board.addEventListener('pointermove', onPointerMove, { passive: false });
     board.addEventListener('pointerup', onPointerUp);
@@ -695,10 +777,10 @@ if (board) {
 // INICIALIZAÇÃO DE NÍVEL
 // ────────────────────────────────────────────────────────────────
 export function iniciarJogo(nivel) {
-    const n = Math.max(1, Math.min(5, parseInt(nivel, 10) || 5));
+    const n = Math.max(1, Math.min(5, parseInt(nivel, 10) || NIVEL_PADRAO));
     estado.nivel = n;
-    
-    const config = CONFIG_NIVEIS[n] || CONFIG_NIVEIS[5];
+
+    const config = CONFIG_NIVEIS[n] || CONFIG_NIVEIS[NIVEL_PADRAO];
     estado.tamanho = config.tamanho;
     const qtdPares = config.pares;
 
@@ -707,60 +789,68 @@ export function iniciarJogo(nivel) {
     estado.historico = [];
     estado.desenhando = null;
     estado.concluido = false;
-    estado.inicioIQ = 90;
     activePointerId = null;
     ultimaCellTocada = null;
 
     estado.grid = Array.from({ length: estado.tamanho }, () =>
-        Array.from({ length: estado.tamanho }, () => ({ tipo: 'vazio', cor: null, parId: null }))
+        Array.from({ length: estado.tamanho }, () => ({
+            tipo: 'vazio',
+            cor: null,
+            parId: null
+        }))
     );
 
-    estado.pares.forEach(p => {
+    for (const p of estado.pares) {
         estado.grid[p.a.r][p.a.c] = { tipo: 'endpoint', cor: p.cor, parId: p.id };
         estado.grid[p.b.r][p.b.c] = { tipo: 'endpoint', cor: p.cor, parId: p.id };
-    });
+    }
 
     montarBoard();
     atualizarVisualDom();
-    atualizarIQ(0);
+    atualizarIAT(0);
     atualizarProgresso();
     atualizarBotaoUndo();
     iniciarTimer();
 }
 
 // ────────────────────────────────────────────────────────────────
-// LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
+// INICIALIZAÇÃO DA INTERFACE E BOTÕES
 // ────────────────────────────────────────────────────────────────
-function inicializarBotoesUI() {
-    // Google Auth
-    const btnGoogle = $('btn-login-google');
-    if (btnGoogle) {
-        btnGoogle.onclick = async () => {
-            try {
-                const provider = new GoogleAuthProvider();
-                await signInWithPopup(auth, provider);
-                mostrarToast('Autenticado com sucesso!');
-            } catch (e) {
-                console.error(e);
-                mostrarToast('Erro ao autenticar com o Google.');
-            }
-        };
-    }
+function confirmarSeTemProgresso(mensagem) {
+    const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
+    return !temProgresso || confirm(mensagem);
+}
 
-    // Anónimo Auth
-    const btnAnon = $('btn-login-anon');
-    if (btnAnon) {
-        btnAnon.onclick = async () => {
-            try {
-                await signInAnonymously(auth);
-                mostrarToast('Modo Anónimo ativado.');
-            } catch (e) {
-                mostrarToast('Erro ao iniciar como anónimo.');
-            }
-        };
-    }
+function registarBotaoLoginGoogle() {
+    const btn = $('btn-login-google');
+    if (!btn) return;
+    btn.onclick = async () => {
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+            mostrarToast('Autenticado com sucesso!');
+        } catch (e) {
+            console.warn(e);
+            mostrarToast('Erro ao autenticar com o Google.');
+        }
+    };
+}
 
-    // E-mail Auth & Registo Toggle
+function registarBotaoLoginAnonimo() {
+    const btn = $('btn-login-anon');
+    if (!btn) return;
+    btn.onclick = async () => {
+        try {
+            await signInAnonymously(auth);
+            mostrarToast('Modo Anónimo ativado.');
+        } catch (e) {
+            console.warn(e);
+            mostrarToast('Erro ao iniciar como anónimo.');
+        }
+    };
+}
+
+function registarFormularioEmail() {
     let modoRegisto = false;
     const btnToggleMode = $('btn-toggle-mode');
     const emailFormTitle = $('email-form-title');
@@ -769,22 +859,26 @@ function inicializarBotoesUI() {
     if (btnToggleMode) {
         btnToggleMode.onclick = () => {
             modoRegisto = !modoRegisto;
-            if (modoRegisto) {
-                emailFormTitle.textContent = 'Crie a sua nova conta:';
-                btnEmailSubmit.textContent = '📝 Registar e Entrar';
-                btnToggleMode.textContent = 'Já tem conta? Clique aqui para entrar';
-            } else {
-                emailFormTitle.textContent = 'Ou entre com o seu E-mail:';
-                btnEmailSubmit.textContent = '🔑 Entrar com E-mail';
-                btnToggleMode.textContent = 'Não tem conta? Clique aqui para se registar';
+            if (emailFormTitle) {
+                emailFormTitle.textContent = modoRegisto
+                    ? 'Crie a sua nova conta:'
+                    : 'Ou entre com o seu E-mail:';
             }
+            if (btnEmailSubmit) {
+                btnEmailSubmit.textContent = modoRegisto
+                    ? '📝 Registar e Entrar'
+                    : '🔑 Entrar com E-mail';
+            }
+            btnToggleMode.textContent = modoRegisto
+                ? 'Já tem conta? Clique aqui para entrar'
+                : 'Não tem conta? Clique aqui para se registar';
         };
     }
 
     if (btnEmailSubmit) {
         btnEmailSubmit.onclick = async () => {
-            const email = $('auth-email').value.trim();
-            const password = $('auth-password').value.trim();
+            const email = $('auth-email')?.value.trim() || '';
+            const password = $('auth-password')?.value.trim() || '';
 
             if (!email || !password) {
                 mostrarToast('Preencha o e-mail e a palavra-passe.');
@@ -800,73 +894,101 @@ function inicializarBotoesUI() {
                     mostrarToast('Sessão iniciada com sucesso!');
                 }
             } catch (e) {
-                console.error(e);
+                console.warn(e);
                 mostrarToast('Erro na autenticação. Verifique os dados.');
             }
         };
     }
-
-    // Logout / Switch User
-    const btnSwitch = $('btn-switch-user');
-    if (btnSwitch) {
-        btnSwitch.onclick = async () => {
-            if (confirm('Deseja terminar a sessão atual?')) {
-                await signOut(auth);
-                window.location.reload();
-            }
-        };
-    }
-
-    // Reset Score
-    const btnResetScore = $('btn-reset-score');
-    if (btnResetScore) {
-        btnResetScore.onclick = async () => {
-            if (confirm('Deseja zerar a pontuação e começar do zero?')) {
-                estado.pontos = 0;
-                const disp = $('display-pontos');
-                if (disp) disp.textContent = `Pontos: 0`;
-                salvarLocal();
-                if (estado.utilizador && !estado.utilizador.isAnonimo) {
-                    await sincronizarPontuacaoFirebase();
-                }
-                mostrarToast('Pontuação reiniciada!');
-            }
-        };
-    }
-
-    // Seletor de Nível
-    const selectNivel = $('select-nivel');
-    if (selectNivel) {
-        selectNivel.onchange = (e) => {
-            const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
-            if (temProgresso && !confirm('Trocar de nível vai apagar o progresso atual. Continuar?')) {
-                e.target.value = estado.nivel;
-                return;
-            }
-            iniciarJogo(parseInt(e.target.value, 10));
-        };
-    }
-
-    // Botões de Jogo
-    const btnReset = $('btn-reset');
-    if (btnReset) {
-        btnReset.onclick = () => {
-            const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
-            if (temProgresso && !confirm('Tem a certeza de que deseja reiniciar o nível atual? O progresso será perdido.')) {
-                return;
-            }
-            iniciarJogo(estado.nivel);
-        };
-    }
-
-    const btnHint = $('btn-hint');
-    if (btnHint) btnHint.onclick = darDica;
-
-    const btnUndo = $('btn-undo');
-    if (btnUndo) btnUndo.onclick = desfazer;
 }
 
-// Inicialização imediata ao carregar o módulo
+function registarBotaoTrocarUtilizador() {
+    const btn = $('btn-switch-user');
+    if (!btn) return;
+    btn.onclick = async () => {
+        if (confirm('Deseja terminar a sessão atual?')) {
+            await signOut(auth);
+            window.location.reload();
+        }
+    };
+}
+
+function registarBotaoResetScore() {
+    const btn = $('btn-reset-score');
+    if (!btn) return;
+    btn.onclick = async () => {
+        if (!confirm('Deseja zerar a pontuação e começar do zero?')) return;
+
+        estado.pontos = 0;
+        atualizarDisplayPontos();
+        salvarLocal();
+
+        if (estado.utilizador && !estado.utilizador.isAnonimo) {
+            await sincronizarPontuacaoFirebase();
+        }
+        mostrarToast('Pontuação reiniciada!');
+    };
+}
+
+function registarSelectNivel() {
+    const select = $('select-nivel');
+    if (!select) return;
+    select.onchange = (e) => {
+        if (!confirmarSeTemProgresso('Trocar de nível vai apagar o progresso atual. Continuar?')) {
+            e.target.value = estado.nivel;
+            return;
+        }
+        iniciarJogo(parseInt(e.target.value, 10));
+    };
+}
+
+function registarBotaoReset() {
+    const btn = $('btn-reset');
+    if (!btn) return;
+    btn.onclick = () => {
+        if (!confirmarSeTemProgresso('Tem a certeza de que deseja reiniciar o nível atual?')) {
+            return;
+        }
+        iniciarJogo(estado.nivel);
+    };
+}
+
+function registarBotaoDica() {
+    const btn = $('btn-hint');
+    if (btn) btn.onclick = darDica;
+}
+
+function registarBotaoUndo() {
+    const btn = $('btn-undo');
+    if (btn) btn.onclick = desfazer;
+}
+
+function registarBotaoAutoSolve() {
+    const btn = $('btn-auto-solve');
+    if (!btn) return;
+    btn.onclick = () => {
+        if (confirm('Deseja ver a solução automática deste nível?')) {
+            resolverNivelAutomaticamente();
+        }
+    };
+}
+
+function inicializarBotoesUI() {
+    registarBotaoLoginGoogle();
+    registarBotaoLoginAnonimo();
+    registarFormularioEmail();
+    registarBotaoTrocarUtilizador();
+    registarBotaoResetScore();
+    registarSelectNivel();
+    registarBotaoReset();
+    registarBotaoDica();
+    registarBotaoUndo();
+    registarBotaoAutoSolve();
+}
+
+// ────────────────────────────────────────────────────────────────
+// BOOTSTRAP
+// ────────────────────────────────────────────────────────────────
 inicializarBotoesUI();
+registarEventosBoard();
 verificarSessaoInicial();
-iniciarJogo(5);
+iniciarJogo(NIVEL_PADRAO);
