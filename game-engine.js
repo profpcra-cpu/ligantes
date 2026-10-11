@@ -1,6 +1,14 @@
 import { db, auth } from "./firebase-config.js";
-import { ref, update, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { 
+    signInAnonymously, 
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    signOut, 
+    onAuthStateChanged, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -13,7 +21,11 @@ export const PALETA = [
     { cor: '#a855f7', simbolo: '◆' },
     { cor: '#06b6d4', simbolo: '✚' },
     { cor: '#ec4899', simbolo: '♥' },
-    { cor: '#84cc16', simbolo: '⬟' }
+    { cor: '#84cc16', simbolo: '⬟' },
+    { cor: '#14b8a6', simbolo: '✿' },
+    { cor: '#f97316', simbolo: '✦' },
+    { cor: '#8b5cf6', simbolo: '☯' },
+    { cor: '#0ea5e9', simbolo: '❄' }
 ];
 
 const TAMANHO_POR_NIVEL = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12 };
@@ -442,7 +454,7 @@ function darDica() {
     if (estado.concluido) return;
     const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
     if (paresPendentes.length === 0) {
-        mostrarToast('Todos los pares já estão ligados!');
+        mostrarToast('Todos os pares já estão ligados!');
         return;
     }
 
@@ -710,6 +722,7 @@ export function iniciarJogo(nivel) {
 // LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
 // ────────────────────────────────────────────────────────────────
 function inicializarBotoesUI() {
+    // Google Auth
     const btnGoogle = $('btn-login-google');
     if (btnGoogle) {
         btnGoogle.onclick = async () => {
@@ -724,6 +737,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Anónimo Auth
     const btnAnon = $('btn-login-anon');
     if (btnAnon) {
         btnAnon.onclick = async () => {
@@ -736,6 +750,53 @@ function inicializarBotoesUI() {
         };
     }
 
+    // E-mail Auth & Registo Toggle
+    let modoRegisto = false;
+    const btnToggleMode = $('btn-toggle-mode');
+    const emailFormTitle = $('email-form-title');
+    const btnEmailSubmit = $('btn-email-submit');
+
+    if (btnToggleMode) {
+        btnToggleMode.onclick = () => {
+            modoRegisto = !modoRegisto;
+            if (modoRegisto) {
+                emailFormTitle.textContent = 'Crie a sua nova conta:';
+                btnEmailSubmit.textContent = '📝 Registar e Entrar';
+                btnToggleMode.textContent = 'Já tem conta? Clique aqui para entrar';
+            } else {
+                emailFormTitle.textContent = 'Ou entre com o seu E-mail:';
+                btnEmailSubmit.textContent = '🔑 Entrar com E-mail';
+                btnToggleMode.textContent = 'Não tem conta? Clique aqui para se registar';
+            }
+        };
+    }
+
+    if (btnEmailSubmit) {
+        btnEmailSubmit.onclick = async () => {
+            const email = $('auth-email').value.trim();
+            const password = $('auth-password').value.trim();
+
+            if (!email || !password) {
+                mostrarToast('Preencha o e-mail e a palavra-passe.');
+                return;
+            }
+
+            try {
+                if (modoRegisto) {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    mostrarToast('Conta criada com sucesso!');
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    mostrarToast('Sessão iniciada com sucesso!');
+                }
+            } catch (e) {
+                console.error(e);
+                mostrarToast('Erro na autenticação. Verifique os dados.');
+            }
+        };
+    }
+
+    // Logout / Switch User
     const btnSwitch = $('btn-switch-user');
     if (btnSwitch) {
         btnSwitch.onclick = async () => {
@@ -746,6 +807,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Reset Score
     const btnResetScore = $('btn-reset-score');
     if (btnResetScore) {
         btnResetScore.onclick = async () => {
@@ -762,6 +824,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Seletor de Nível
     const selectNivel = $('select-nivel');
     if (selectNivel) {
         selectNivel.onchange = (e) => {
@@ -774,6 +837,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Botões de Jogo
     const btnReset = $('btn-reset');
     if (btnReset) {
         btnReset.onclick = () => {
