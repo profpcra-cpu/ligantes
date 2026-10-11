@@ -65,22 +65,25 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
+    gap: 8px;
 }
 
-.header a {
+.header a, .btn-user-switch {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 10px 10px;
-    margin: -10px -10px;
+    padding: 8px 10px;
     border-radius: 10px;
     color: var(--text-muted);
     font-weight: 700;
-    font-size: 14px;
+    font-size: 13px;
     text-decoration: none;
-    transition: background-color 0.15s ease;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
-.header a:active { background: var(--btn-ghost); }
+.header a:active, .btn-user-switch:active { background: var(--btn-ghost); }
 
 .user-info {
     font-size: 12px;
@@ -89,7 +92,7 @@ body {
     background: var(--btn-ghost);
     padding: 6px 10px;
     border-radius: 8px;
-    max-width: 160px;
+    max-width: 130px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -272,8 +275,6 @@ body {
     gap: 10px;
 }
 
-.controls .full { grid-column: 1 / -1; }
-
 button, select {
     width: 100%;
     min-height: 48px;
@@ -340,7 +341,7 @@ select {
     padding-right: 40px;
 }
 
-/* ── ACESSIBILIDADE ───────────────────── */
+/* ── ACESSIBILIDADE E TOAST ────────────── */
 .sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -351,7 +352,6 @@ select {
     border: 0;
 }
 
-/* ── TOAST ─────────────────────────────── */
 .toast {
     position: fixed;
     top: max(20px, env(safe-area-inset-top));
@@ -388,7 +388,8 @@ select {
 <div class="container">
     <div class="header">
         <a href="javascript:history.back()" aria-label="Voltar">⬅ Voltar</a>
-        <div class="user-info" id="user-email-display" title="Utilizador autenticado">A carregar...</div>
+        <div class="user-info" id="user-email-display" title="Utilizador atual">A carregar...</div>
+        <button class="btn-user-switch" id="btn-switch-user" title="Trocar de conta">👤 Trocar</button>
         <span id="display-pontos" aria-live="polite">Pontos: 0</span>
     </div>
 
@@ -424,23 +425,20 @@ select {
 <script type="module">
 import { db } from "./firebase-config.js";
 import { ref, update, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Inicializar Auth do Firebase
 const auth = getAuth();
 
-// ────────────────────────────────────────────────────────────────
-// CONFIG E PALETA
-// ────────────────────────────────────────────────────────────────
+// Paleta e Configurações
 const PALETA = [
-    { cor: '#22c55e', simbolo: '●' },   // verde
-    { cor: '#3b82f6', simbolo: '▲' },   // azul
-    { cor: '#ef4444', simbolo: '■' },   // vermelho
-    { cor: '#f59e0b', simbolo: '★' },   // laranja
-    { cor: '#a855f7', simbolo: '◆' },   // roxo
-    { cor: '#06b6d4', simbolo: '✚' },   // ciano
-    { cor: '#ec4899', simbolo: '♥' },   // rosa
-    { cor: '#84cc16', simbolo: '⬟' }    // lima
+    { cor: '#22c55e', simbolo: '●' },
+    { cor: '#3b82f6', simbolo: '▲' },
+    { cor: '#ef4444', simbolo: '■' },
+    { cor: '#f59e0b', simbolo: '★' },
+    { cor: '#a855f7', simbolo: '◆' },
+    { cor: '#06b6d4', simbolo: '✚' },
+    { cor: '#ec4899', simbolo: '♥' },
+    { cor: '#84cc16', simbolo: '⬟' }
 ];
 
 const TAMANHO_POR_NIVEL = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12 };
@@ -464,28 +462,17 @@ const estado = {
 const $ = (id) => document.getElementById(id);
 
 // ────────────────────────────────────────────────────────────────
-// LOGIN AUTOMÁTICO E GESTÃO DE UTILIZADOR
+// AUTENTICAÇÃO E TROCA DE UTILIZADOR
 // ────────────────────────────────────────────────────────────────
 function inicializarAutenticacao() {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // Utilizador já autenticado
             configurarSessaoUtilizador(user);
         } else {
-            // Tenta recuperar sessão anterior ou efetuar login automático/anónimo seguro
             try {
-                const localCred = localStorage.getItem('brain_hub_jogador');
-                if (localCred) {
-                    const parsed = JSON.parse(localCred);
-                    estado.utilizador = { ...estado.utilizador, ...parsed };
-                    $('user-email-display').textContent = estado.utilizador.email;
-                }
-                
-                // Autenticação anónima ou redirecionamento Google automático se necessário
                 const result = await signInAnonymously(auth);
                 configurarSessaoUtilizador(result.user);
             } catch (err) {
-                console.warn("Modo offline ativo:", err);
                 $('user-email-display').textContent = estado.utilizador.email;
             }
         }
@@ -494,7 +481,7 @@ function inicializarAutenticacao() {
 }
 
 function configurarSessaoUtilizador(user) {
-    const emailStr = user.email || (user.isAnonymous ? "Convidado (Anónimo)" : "utilizador@google.com");
+    const emailStr = user.email || (user.isAnonymous ? "Convidado" : "utilizador@google.com");
     estado.utilizador = {
         uid: user.uid,
         email: emailStr,
@@ -506,6 +493,22 @@ function configurarSessaoUtilizador(user) {
         localStorage.setItem('brain_hub_jogador', JSON.stringify(estado.utilizador));
     } catch (_) {}
 }
+
+async function trocarUtilizador() {
+    if (confirm('Deseja terminar a sessão atual e trocar de utilizador?')) {
+        try {
+            localStorage.removeItem('brain_hub_jogador');
+            localStorage.removeItem('brain_hub_pontos');
+            await signOut(auth);
+            mostrarToast('Sessão terminada. A reiniciar...');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e) {
+            window.location.reload();
+        }
+    }
+}
+
+$('btn-switch-user').addEventListener('click', trocarUtilizador);
 
 async function carregarPontosDoFirebase() {
     try {
@@ -520,7 +523,6 @@ async function carregarPontosDoFirebase() {
             }
         }
     } catch (e) {
-        // Fallback local se falhar a leitura
         try {
             const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
             if (!isNaN(p)) {
@@ -553,7 +555,6 @@ function validarSolvabilidade(tamanho, pares) {
 
         while (fila.length > 0) {
             const atual = fila.shift();
-
             if (atual.r === par.b.r && atual.c === par.b.c) {
                 caminhoEncontrado = true;
                 break;
@@ -563,7 +564,6 @@ function validarSolvabilidade(tamanho, pares) {
             for (const d of direcoes) {
                 const nr = atual.r + d.r;
                 const nc = atual.c + d.c;
-
                 if (nr >= 0 && nr < tamanho && nc >= 0 && nc < tamanho && !visitados[nr][nc]) {
                     const celulaOcupada = gridTemp[nr][nc];
                     if (celulaOcupada === null || (nr === par.b.r && nc === par.b.c)) {
@@ -573,10 +573,8 @@ function validarSolvabilidade(tamanho, pares) {
                 }
             }
         }
-
         if (!caminhoEncontrado) return false;
     }
-
     return true;
 }
 
@@ -585,41 +583,34 @@ function gerarPares(tamanho, qtdPares) {
     let maxDistanciaGlobal = -1;
     const margem = 1;
     const limite = tamanho - margem;
-    const tentativasMaximas = 100;
 
-    for (let t = 0; t < tentativasMaximas; t++) {
+    for (let t = 0; t < 100; t++) {
         const paresCandidatos = [];
         const ocupados = [];
         let distanciaAcumuladaTentativa = 0;
 
         for (let i = 0; i < qtdPares; i++) {
             let a = null, b = null;
-
             if (i === 0) {
                 a = { r: margem, c: margem };
                 b = { r: limite - 1, c: limite - 1 };
             } else {
                 let melhorA = null;
                 let maiorDistMinima = -1;
-
                 for (let tent = 0; tent < 30; tent++) {
                     const candR = margem + Math.floor(Math.random() * (limite - margem));
                     const candC = margem + Math.floor(Math.random() * (limite - margem));
-
                     if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
-
                     let menorDist = Infinity;
                     for (const occ of ocupados) {
                         const dist = distanciaManhattan(occ, { r: candR, c: candC });
                         if (dist < menorDist) menorDist = dist;
                     }
-
                     if (menorDist > maiorDistMinima) {
                         maiorDistMinima = menorDist;
                         melhorA = { r: candR, c: candC };
                     }
                 }
-
                 a = melhorA || { r: margem, c: Math.floor(tamanho / 2) };
                 ocupados.push(a);
 
@@ -628,24 +619,19 @@ function gerarPares(tamanho, qtdPares) {
                 for (let tent = 0; tent < 30; tent++) {
                     const candR = margem + Math.floor(Math.random() * (limite - margem));
                     const candC = margem + Math.floor(Math.random() * (limite - margem));
-
                     if (ocupados.some(p => p.r === candR && p.c === candC)) continue;
                     if (a.r === candR || a.c === candC) continue;
-
                     const distA = distanciaManhattan(a, { r: candR, c: candC });
                     if (distA > maiorDistB) {
                         maiorDistB = distA;
                         melhorBLocal = { r: candR, c: candC };
                     }
                 }
-
                 b = melhorBLocal || { r: limite - 1, c: margem };
             }
-
             ocupados.push(a);
             ocupados.push(b);
             distanciaAcumuladaTentativa += distanciaManhattan(a, b);
-
             const p = PALETA[i % PALETA.length];
             paresCandidatos.push({ id: i, cor: p.cor, simbolo: p.simbolo, a, b });
         }
@@ -661,7 +647,6 @@ function gerarPares(tamanho, qtdPares) {
     if (melhorPares.length === 0) {
         return gerarParesFallbackSimples(tamanho, qtdPares);
     }
-
     return melhorPares;
 }
 
@@ -669,19 +654,13 @@ function gerarParesFallbackSimples(tamanho, qtdPares) {
     const pares = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        pares.push({
-            id: i,
-            cor: p.cor,
-            simbolo: p.simbolo,
-            a: { r: 1 + i, c: 1 },
-            b: { r: 1 + i, c: tamanho - 2 }
-        });
+        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: 1 + i, c: 1 }, b: { r: 1 + i, c: tamanho - 2 } });
     }
     return pares;
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDER DO TABULEIRO
+// RENDER E MECÂNICA DO JOGO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -715,7 +694,6 @@ function atualizarVisualDom() {
             cell.style.removeProperty('--trail-color');
 
             const dado = estado.grid[r][c];
-
             if (dado.tipo === 'endpoint') {
                 const par = estado.pares[dado.parId];
                 const conectado = estado.trilhas[dado.parId] ? ' connected' : '';
@@ -734,12 +712,8 @@ function atualizarVisualDom() {
     }
 }
 
-// ────────────────────────────────────────────────────────────────
-// REGRAS DE JOGO E INPUT
-// ────────────────────────────────────────────────────────────────
 function iniciarDesenho(r, c) {
     if (estado.concluido) return false;
-
     const dado = estado.grid[r][c];
     if (dado.tipo !== 'endpoint') return false;
 
@@ -749,13 +723,7 @@ function iniciarDesenho(r, c) {
     }
 
     estado.historico.push(snapshotTrilhas());
-
-    estado.desenhando = {
-        parId: dado.parId,
-        cor: dado.cor,
-        pontos: [{ r, c }]
-    };
-
+    estado.desenhando = { parId: dado.parId, cor: dado.cor, pontos: [{ r, c }] };
     vibrar(8);
     atualizarVisualDom();
     atualizarBotaoUndo();
@@ -787,7 +755,6 @@ function aplicarPasso(r, c) {
     if (dist !== 1) return;
 
     const alvo = estado.grid[r][c];
-
     if (alvo.tipo === 'endpoint' && alvo.parId === d.parId) {
         const inicio = trail[0];
         if (inicio.r === r && inicio.c === c && trail.length === 1) return;
@@ -844,7 +811,6 @@ function lidarComMovimento(rAlvo, cAlvo) {
 
         const antes = trail.length;
         aplicarPasso(passo.r, passo.c);
-
         if (!estado.desenhando) return;
         if (estado.desenhando.pontos.length === antes) return;
     }
@@ -885,7 +851,6 @@ function snapshotTrilhas() {
 
 function desfazer() {
     if (estado.historico.length === 0) return;
-
     for (const id in estado.trilhas) limparTrilhaNoGrid(estado.trilhas[id]);
     estado.trilhas = {};
 
@@ -913,7 +878,6 @@ function desfazer() {
 
 function darDica() {
     if (estado.concluido) return;
-    
     const paresPendentes = estado.pares.filter(p => !estado.trilhas[p.id]);
     if (paresPendentes.length === 0) {
         mostrarToast('Todos os pares já estão ligados!');
@@ -921,14 +885,12 @@ function darDica() {
     }
 
     const parAlvo = paresPendentes[0];
-    
     if (estado.trilhas[parAlvo.id]) {
         limparTrilhaNoGrid(estado.trilhas[parAlvo.id]);
         delete estado.trilhas[parAlvo.id];
     }
 
     estado.historico.push(snapshotTrilhas());
-
     const pontosDica = [parAlvo.a];
     if (parAlvo.a.r !== parAlvo.b.r) {
         pontosDica.push({ r: parAlvo.b.r, c: parAlvo.a.c });
@@ -936,7 +898,6 @@ function darDica() {
     pontosDica.push(parAlvo.b);
 
     estado.trilhas[parAlvo.id] = { cor: parAlvo.cor, pontos: pontosDica };
-    
     pontosDica.forEach((p, idx) => {
         if (idx === 0 || idx === pontosDica.length - 1) return;
         estado.grid[p.r][p.c] = { tipo: 'trilha', cor: parAlvo.cor, parId: parAlvo.id };
@@ -951,7 +912,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI E FEEDBACK
+// UI E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -1014,9 +975,6 @@ function vibrar(ms) {
     }
 }
 
-// ────────────────────────────────────────────────────────────────
-// VITÓRIA E PERSISTÊNCIA NO FIREBASE
-// ────────────────────────────────────────────────────────────────
 function verificarVitoria() {
     if (Object.keys(estado.trilhas).length !== estado.pares.length) return;
 
@@ -1039,9 +997,7 @@ function verificarVitoria() {
 }
 
 function salvarLocal() {
-    try { 
-        localStorage.setItem('brain_hub_pontos', String(estado.pontos)); 
-    } catch (_) {}
+    try { localStorage.setItem('brain_hub_pontos', String(estado.pontos)); } catch (_) {}
 }
 
 async function sincronizarPontuacaoFirebase() {
@@ -1054,13 +1010,11 @@ async function sincronizarPontuacaoFirebase() {
             nivelAtual: estado.nivel,
             ultimaAtividade: new Date().toISOString()
         });
-    } catch (e) {
-        console.warn("Erro ao sincronizar com o Firebase:", e);
-    }
+    } catch (e) {}
 }
 
 // ────────────────────────────────────────────────────────────────
-// INPUT TÁTIL / POINTER EVENTS
+// INPUTS DE TOQUE
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
@@ -1138,7 +1092,6 @@ board.addEventListener('pointerdown', onPointerDown, { passive: false });
 board.addEventListener('pointermove', onPointerMove, { passive: false });
 board.addEventListener('pointerup', onPointerUp);
 board.addEventListener('pointercancel', onPointerCancel);
-
 board.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
 board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
@@ -1202,18 +1155,6 @@ $('btn-hint').addEventListener('click', darDica);$('btn-undo').addEventListener(
 // ────────────────────────────────────────────────────────────────
 inicializarAutenticacao();
 iniciarJogo(5);
-
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden && estado.timer && !estado.concluido) {
-        pararTimer();
-    } else if (!document.hidden && !estado.timer && !estado.concluido) {
-        estado.timer = setInterval(() => {
-            if (estado.concluido) return;
-            estado.segundos++;
-            atualizarTimer();
-        }, 1000);
-    }
-});
 </script>
 </body>
 </html>
