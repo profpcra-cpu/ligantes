@@ -1,7 +1,7 @@
-import { estado, aplicarPassoAutomatico, atualizarVisualDom, tocarSom, mostrarToast } from "./ligantes.js"; // Ajuste os imports conforme a sua estrutura de ficheiros
+import { estado, atualizarVisualDom, tocarSom, mostrarToast, verificarVitoria } from "./game-engine.js";
 
 /**
- * Tenta resolver automaticamente todos os pares pendentes do nível atual.
+ * Tenta resolver automaticamente todos los pares pendentes do nível atual.
  */
 export async function resolverNivelAutomaticamente() {
     if (estado.concluido) {
