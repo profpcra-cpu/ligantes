@@ -59,16 +59,67 @@ body {
     border: 1px solid var(--card-border);
 }
 
+/* ── MODAL / TELA DE AUTENTICAÇÃO ────── */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.auth-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+.auth-card {
+    background: #fff;
+    padding: 28px;
+    border-radius: 28px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+.auth-card h2 { margin-top: 0; font-size: 22px; color: var(--text-color); }
+.auth-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+.btn-auth-google {
+    background: #fff;
+    color: #334155;
+    border: 1.5px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+.btn-auth-google:active { background: #f8fafc; }
+
+.btn-auth-anon {
+    background: var(--btn-ghost);
+    color: var(--text-muted);
+    border: none;
+    margin-bottom: 16px;
+}
+
 /* ── HEADER ───────────────────────────── */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
-    gap: 8px;
+    gap: 6px;
 }
 
-.header a, .btn-user-switch {
+.header a, .btn-user-action {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -81,9 +132,8 @@ body {
     background: transparent;
     border: 1px solid #e2e8f0;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
 }
-.header a:active, .btn-user-switch:active { background: var(--btn-ghost); }
+.header a:active, .btn-user-action:active { background: var(--btn-ghost); }
 
 .user-info {
     font-size: 12px;
@@ -92,7 +142,7 @@ body {
     background: var(--btn-ghost);
     padding: 6px 10px;
     border-radius: 8px;
-    max-width: 130px;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -105,7 +155,7 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
-/* ── STATS (IQ + TIMER + PROGRESSO) ────── */
+/* ── STATS ────────────────────────────── */
 .stats {
     display: flex;
     align-items: center;
@@ -132,7 +182,6 @@ body {
     font-variant-numeric: tabular-nums;
     transition: color 0.2s ease;
 }
-
 .iq-badge.up { color: #16a34a; }
 
 .progress-text {
@@ -226,9 +275,7 @@ body {
     height: 78%;
     border-radius: 50%;
     background: #cbd5e1;
-    box-shadow:
-        0 4px 10px rgba(0, 0, 0, 0.18),
-        inset 0 -3px 6px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18), inset 0 -3px 6px rgba(0, 0, 0, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -237,16 +284,13 @@ body {
     font-weight: 800;
     line-height: 1;
     transition: transform 0.14s ease, box-shadow 0.2s ease;
-    will-change: transform;
 }
 
 .endpoint::after {
     content: '';
     position: absolute;
-    top: 12%;
-    left: 14%;
-    width: 30%;
-    height: 30%;
+    top: 12%; left: 14%;
+    width: 30%; height: 30%;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.55);
     pointer-events: none;
@@ -254,10 +298,7 @@ body {
 
 .endpoint.connected {
     transform: scale(1.06);
-    box-shadow:
-        0 6px 16px rgba(0, 0, 0, 0.22),
-        0 0 0 3px rgba(255, 255, 255, 0.9),
-        0 0 0 5px currentColor;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22), 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 5px currentColor;
 }
 
 .endpoint .symbol {
@@ -285,7 +326,7 @@ button, select {
     font-weight: 700;
     cursor: pointer;
     border: none;
-    transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    transition: transform 0.1s ease, background-color 0.15s ease;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -309,9 +350,7 @@ button:disabled {
     min-height: 48px;
     font-size: 15px;
 }
-.btn-hint:active:not(:disabled) {
-    background: rgba(245, 158, 11, 0.18);
-}
+.btn-hint:active:not(:disabled) { background: rgba(245, 158, 11, 0.18); }
 
 .btn-undo {
     background: transparent;
@@ -320,14 +359,6 @@ button:disabled {
     grid-column: span 2;
     min-height: 44px;
     font-size: 14px;
-}
-.btn-undo:not(:disabled) {
-    color: var(--btn-primary);
-    border-color: var(--btn-primary);
-    background: rgba(99, 102, 241, 0.05);
-}
-.btn-undo:active:not(:disabled) {
-    background: rgba(99, 102, 241, 0.12);
 }
 
 select {
@@ -341,15 +372,8 @@ select {
     padding-right: 40px;
 }
 
-/* ── ACESSIBILIDADE E TOAST ────────────── */
 .sr-only {
-    position: absolute;
-    width: 1px; height: 1px;
-    padding: 0; margin: -1px;
-    overflow: hidden;
-    clip: rect(0,0,0,0);
-    white-space: nowrap;
-    border: 0;
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
 
 .toast {
@@ -368,28 +392,32 @@ select {
     z-index: 100;
     pointer-events: none;
     white-space: nowrap;
-    max-width: calc(100vw - 32px);
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
-
-@media (max-height: 700px) {
-    .container { padding: 16px; border-radius: 26px; }
-    .iq-badge { font-size: 22px; }
-    .board-wrapper { margin-bottom: 10px; border-radius: 20px; }
-    .controls { gap: 8px; }
-    button, select { min-height: 44px; font-size: 14px; }
-}
 </style>
 </head>
 <body>
 
+<!-- MODAL DE ESCOLHA DE MODO DE JOGO -->
+<div class="auth-overlay" id="auth-modal">
+    <div class="auth-card">
+        <h2>Brain Curves</h2>
+        <p>Escolha como deseja entrar para começar o desafio:</p>
+        <button class="btn-auth-google" id="btn-login-google">
+            <span>🌐</span> Entrar com Conta Google
+        </button>
+        <button class="btn-auth-anon" id="btn-login-anon">
+            👤 Jogar como Anónimo
+        </button>
+    </div>
+</div>
+
 <div class="container">
     <div class="header">
         <a href="javascript:history.back()" aria-label="Voltar">⬅ Voltar</a>
-        <div class="user-info" id="user-email-display" title="Utilizador atual">A carregar...</div>
-        <button class="btn-user-switch" id="btn-switch-user" title="Trocar de conta">👤 Trocar</button>
+        <div class="user-info" id="user-display">Convidado</div>
+        <button class="btn-user-action" id="btn-reset-score" title="Zerar Pontuação">🔄 Zerar</button>
+        <button class="btn-user-action" id="btn-switch-user" title="Mudar Conta">👤 Sair</button>
         <span id="display-pontos" aria-live="polite">Pontos: 0</span>
     </div>
 
@@ -424,12 +452,11 @@ select {
 
 <script type="module">
 import { db } from "./firebase-config.js";
-import { ref, update, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { ref, update, get, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const auth = getAuth();
 
-// Paleta e Configurações
 const PALETA = [
     { cor: '#22c55e', simbolo: '●' },
     { cor: '#3b82f6', simbolo: '▲' },
@@ -456,61 +483,95 @@ const estado = {
     timer: null,
     concluido: false,
     inicioIQ: 90,
-    utilizador: { uid: 'visitante_default', email: 'Convidado', nome: 'Jogador' }
+    utilizador: null
 };
 
 const $ = (id) => document.getElementById(id);
 
 // ────────────────────────────────────────────────────────────────
-// AUTENTICAÇÃO E TROCA DE UTILIZADOR
+// GESTÃO DE AUTENTICAÇÃO E ESCOLHA DE MODO
 // ────────────────────────────────────────────────────────────────
-function inicializarAutenticacao() {
+function verificarSessaoInicial() {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            configurarSessaoUtilizador(user);
+            $('auth-modal').classList.remove('active');
+            configurarSessao(user);
         } else {
-            try {
-                const result = await signInAnonymously(auth);
-                configurarSessaoUtilizador(result.user);
-            } catch (err) {
-                $('user-email-display').textContent = estado.utilizador.email;
-            }
+            $('auth-modal').classList.add('active');
         }
-        carregarPontosDoFirebase();
     });
 }
 
-function configurarSessaoUtilizador(user) {
-    const emailStr = user.email || (user.isAnonymous ? "Convidado" : "utilizador@google.com");
+async function configurarSessao(user) {
+    const isAnon = user.isAnonymous;
+    const emailStr = user.email || (isAnon ? "Anónimo" : "utilizador@google.com");
+    
     estado.utilizador = {
         uid: user.uid,
         email: emailStr,
-        nome: user.displayName || emailStr.split('@')[0]
+        nome: user.displayName || emailStr.split('@')[0],
+        isAnonimo: isAnon
     };
-    
-    $('user-email-display').textContent = estado.utilizador.email;
+
+    $('user-display').textContent = isAnon ? "👤 Anónimo" : emailStr.split('@')[0];
+    await carregarPontosDoFirebase();
+}
+
+// Botões do Modal de Autenticação
+$('btn-login-google').addEventListener('click', async () => {
     try {
-        localStorage.setItem('brain_hub_jogador', JSON.stringify(estado.utilizador));
-    } catch (_) {}
-}
-
-async function trocarUtilizador() {
-    if (confirm('Deseja terminar a sessão atual e trocar de utilizador?')) {
-        try {
-            localStorage.removeItem('brain_hub_jogador');
-            localStorage.removeItem('brain_hub_pontos');
-            await signOut(auth);
-            mostrarToast('Sessão terminada. A reiniciar...');
-            setTimeout(() => window.location.reload(), 1000);
-        } catch (e) {
-            window.location.reload();
-        }
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+        mostrarToast('Autenticado com sucesso!');
+    } catch (e) {
+        mostrarToast('Erro ao autenticar com o Google.');
     }
-}
+});
 
-$('btn-switch-user').addEventListener('click', trocarUtilizador);
+$('btn-login-anon').addEventListener('click', async () => {
+    try {
+        await signInAnonymously(auth);
+        mostrarToast('Modo Anónimo ativado.');
+    } catch (e) {
+        mostrarToast('Erro ao iniciar como anónimo.');
+    }
+});
+
+// Botão Sair / Trocar Conta
+$('btn-switch-user').addEventListener('click', async () => {
+    if (confirm('Deseja terminar a sessão atual?')) {
+        await signOut(auth);
+        window.location.reload();
+    }
+});
+
+// Botão Zerar Pontuação
+$('btn-reset-score').addEventListener('click', async () => {
+    if (confirm('Tem a certeza de que deseja zerar a sua pontuação e começar do zero?')) {
+        estado.pontos = 0;
+        $('display-pontos').textContent = `Pontos: 0`;
+        salvarLocal();
+        if (estado.utilizador && !estado.utilizador.isAnonimo) {
+            await sincronizarPontuacaoFirebase();
+        }
+        mostrarToast('Pontuação reiniciada com sucesso!');
+    }
+});
 
 async function carregarPontosDoFirebase() {
+    if (!estado.utilizador || estado.utilizador.isAnonimo) {
+        // Se for anónimo, lê apenas do localStorage
+        try {
+            const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
+            if (!isNaN(p)) {
+                estado.pontos = p;
+                $('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+            }
+        } catch (_) {}
+        return;
+    }
+
+    // Se estiver logado por e-mail, recupera do Firebase as etapas anteriores
     try {
         const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
         const snapshot = await get(userRef);
@@ -523,18 +584,12 @@ async function carregarPontosDoFirebase() {
             }
         }
     } catch (e) {
-        try {
-            const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
-            if (!isNaN(p)) {
-                estado.pontos = p;
-                $('display-pontos').textContent = `Pontos: ${estado.pontos}`;
-            }
-        } catch (_) {}
+        console.warn("Não foi possível carregar pontos do Firebase.");
     }
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO INTELIGENTE DE PARES (Dispersão Máxima + Validação)
+// GERAÇÃO DE PARES E VALIDAÇÃO (Dispersão Máxima)
 // ────────────────────────────────────────────────────────────────
 function distanciaManhattan(p1, p2) {
     return Math.abs(p1.r - p2.r) + Math.abs(p1.c - p2.c);
@@ -660,7 +715,7 @@ function gerarParesFallbackSimples(tamanho, qtdPares) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDER E MECÂNICA DO JOGO
+// RENDER E MECÂNICA DE JOGO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -1001,6 +1056,7 @@ function salvarLocal() {
 }
 
 async function sincronizarPontuacaoFirebase() {
+    if (!estado.utilizador || estado.utilizador.isAnonimo) return;
     try {
         const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
         await set(userRef, {
@@ -1096,7 +1152,7 @@ board.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false
 board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
 // ────────────────────────────────────────────────────────────────
-// INICIALIZAÇÃO DO JOGO
+// INICIALIZAÇÃO
 // ────────────────────────────────────────────────────────────────
 function iniciarJogo(nivel) {
     const n = Math.max(1, Math.min(5, parseInt(nivel, 10) || 5));
@@ -1128,9 +1184,6 @@ function iniciarJogo(nivel) {
     iniciarTimer();
 }
 
-// ────────────────────────────────────────────────────────────────
-// EVENTOS DE CONTROLOS
-// ────────────────────────────────────────────────────────────────
 $('select-nivel').addEventListener('change', (e) => {
     const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
     if (temProgresso && !confirm('Trocar de nível vai apagar o progresso atual. Continuar?')) {
@@ -1150,10 +1203,8 @@ $('btn-reset').addEventListener('click', () => {
 
 $('btn-hint').addEventListener('click', darDica);$('btn-undo').addEventListener('click', desfazer);
 
-// ────────────────────────────────────────────────────────────────
-// BOOT GLOBAL
-// ────────────────────────────────────────────────────────────────
-inicializarAutenticacao();
+// Boot
+verificarSessaoInicial();
 iniciarJogo(5);
 </script>
 </body>
