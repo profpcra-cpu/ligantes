@@ -86,7 +86,7 @@
         }
 
         .iq-display {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 800;
         }
 
@@ -163,6 +163,11 @@
             background: var(--btn-hover);
         }
 
+        .action-buttons-group {
+            display: flex;
+            gap: 8px;
+        }
+
         .btn-secondary {
             background: #fffbeb;
             color: #d97706;
@@ -171,7 +176,20 @@
             border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            width: 100%;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn-auto {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1.5px solid #bbf7d0;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
         }
 
         /* MODAL DE AUTENTICAÇÃO */
@@ -287,15 +305,15 @@
 
         <!-- INFO DO JOGO -->
         <div class="game-info">
-            <div class="iq-display" id="iq-display">IQ = 90</div>
-            <div id="progress-display" style="font-weight: 600; font-size: 13px; color: var(--text-muted);">0 / 5 pares</div>
+            <div class="iq-display" id="iq-display">IAT: 0</div>
+            <div id="progress-display" style="font-weight: 600; font-size: 13px; color: var(--text-muted);">0 / 12 pares</div>
             <div id="timer-display" style="font-family: monospace; font-size: 15px; font-weight: 700;">00:00</div>
         </div>
 
         <!-- TABULEIRO -->
         <div class="board" id="board"></div>
 
-            <!-- CONTROLOS INFERIORES -->
+        <!-- CONTROLOS DE NÍVEL -->
         <div class="controls-row">
             <select id="select-nivel">
                 <option value="1">Nível 1 (3 Pares - 6x6)</option>
@@ -307,7 +325,11 @@
             <button class="btn-main" id="btn-reset">🔄 Reiniciar</button>
         </div>
 
-        <button class="btn-secondary" id="btn-hint">💡 Dica</button>
+        <!-- BOTÕES DE AÇÃO ADICIONAIS -->
+        <div class="action-buttons-group">
+            <button class="btn-secondary" id="btn-hint">💡 Dica</button>
+            <button class="btn-auto" id="btn-auto-solve">🤖 Auto-Resolver</button>
+        </div>
     </div>
 
     <!-- MODAL DE AUTENTICAÇÃO -->
