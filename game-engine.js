@@ -10,7 +10,6 @@ import {
     signInWithEmailAndPassword 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { tocarSom } from "./audio.js";
-import { resolverNivelAutomaticamente } from "./solver.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -38,7 +37,7 @@ const CONFIG_NIVEIS = {
     5: { tamanho: 12, pares: 12 }
 };
 
-export const estado = {
+const estado = {
     nivel: 5,
     tamanho: 12,
     grid: [],
@@ -50,6 +49,7 @@ export const estado = {
     segundos: 0,
     timer: null,
     concluido: false,
+    inicioIQ: 90,
     utilizador: null
 };
 
@@ -114,7 +114,7 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO GARANTIDA DE PARES
+// GERAÇÃO GARANTIDA COM MARGEM DE CONTORNO
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
     const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
@@ -160,6 +160,7 @@ export function gerarPares(tamanho, qtdPares) {
         const paresCandidatos = [];
         let geracaoComSucesso = true;
 
+        // Deixamos a linha/coluna 0 e a última linha/coluna livres para servir de "corredor de contorno"
         const margemMin = tamanho > 6 ? 1 : 0;
         const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
 
@@ -170,9 +171,10 @@ export function gerarPares(tamanho, qtdPares) {
             }
         }
 
+        // Embaralhar células
         for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponive[j], celulasDisponive[i]];
+            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponiveis[j], celulasDisponiveis[i]];
         }
 
         for (let i = 0; i < qtdPares; i++) {
@@ -223,6 +225,7 @@ export function gerarPares(tamanho, qtdPares) {
         }
     }
 
+    // Fallback seguro em grelha
     const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
@@ -232,7 +235,7 @@ export function gerarPares(tamanho, qtdPares) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDERIZAÇÃO E MECÂNICA DE JOGO
+// RENDER E MECÂNICA DE JOGO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -256,7 +259,7 @@ function montarBoard() {
     board.appendChild(fragment);
 }
 
-export function atualizarVisualDom() {
+function atualizarVisualDom() {
     const n = estado.tamanho;
     for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
@@ -488,7 +491,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI, IAT E UTILITÁRIOS
+// UI E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -501,24 +504,20 @@ function atualizarBotaoUndo() {
     }
 }
 
-export function atualizarIAT(conectados) {
-    const totalPares = estado.pares.length;
-    const fatorEspacial = estado.tamanho * 15;
-    const pontosConexao = conectados * 25;
-    const tempoIdealEsperado = totalPares * 4;
-    const bonusTempo = Math.max(0, (tempoIdealEsperado - estado.segundos) * 5);
-    
-    const iat = fatorEspacial + pontosConexao + bonusTempo;
-    
+function atualizarIQ(conectados) {
+    const total = estado.pares.length;
+    const base = estado.inicioIQ;
+    const porPar = 10;
+    const bonus = conectados === total ? 10 : 0;
+    const iq = base + conectados * porPar + bonus;
     const el = $('iq-display');
     if (el) {
-        el.textContent = `IAT: ${iat}`;
+        el.textContent = `IQ = ${iq}`;
         if (conectados > 0) {
             el.classList.add('up');
             setTimeout(() => el.classList.remove('up'), 400);
         }
     }
-    return iat;
 }
 
 function atualizarTimer() {
@@ -544,7 +543,7 @@ function pararTimer() {
 }
 
 let toastTimeout = null;
-export function mostrarToast(msg) {
+function mostrarToast(msg) {
     const el = $('toast');
     if (!el) return;
     el.textContent = msg;
@@ -559,11 +558,8 @@ function vibrar(ms) {
     }
 }
 
-export function verificarVitoria() {
-    const conectados = Object.keys(estado.trilhas).length;
-    atualizarIAT(conectados);
-
-    if (conectados !== estado.pares.length) return;
+function verificarVitoria() {
+    if (Object.keys(estado.trilhas).length !== estado.pares.length) return;
 
     estado.concluido = true;
     pararTimer();
@@ -573,6 +569,7 @@ export function verificarVitoria() {
     estado.pontos += ganho;
 
     if ($('display-pontos'))$('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+    atualizarIQ(estado.pares.length);
 
     vibrar([30, 50, 30]);
     tocarSom('vitoria');
@@ -602,7 +599,7 @@ async function sincronizarPontuacaoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// EVENTOS DE PONTEIRO E TOQUE
+// INPUTS DE TOQUE (POINTER EVENTS)
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
@@ -710,6 +707,7 @@ export function iniciarJogo(nivel) {
     estado.historico = [];
     estado.desenhando = null;
     estado.concluido = false;
+    estado.inicioIQ = 90;
     activePointerId = null;
     ultimaCellTocada = null;
 
@@ -724,16 +722,17 @@ export function iniciarJogo(nivel) {
 
     montarBoard();
     atualizarVisualDom();
-    atualizarIAT(0);
+    atualizarIQ(0);
     atualizarProgresso();
     atualizarBotaoUndo();
     iniciarTimer();
 }
 
 // ────────────────────────────────────────────────────────────────
-// INICIALIZAÇÃO DA INTERFACE E BOTÕES
+// LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
 // ────────────────────────────────────────────────────────────────
 function inicializarBotoesUI() {
+    // Google Auth
     const btnGoogle = $('btn-login-google');
     if (btnGoogle) {
         btnGoogle.onclick = async () => {
@@ -742,11 +741,13 @@ function inicializarBotoesUI() {
                 await signInWithPopup(auth, provider);
                 mostrarToast('Autenticado com sucesso!');
             } catch (e) {
+                console.error(e);
                 mostrarToast('Erro ao autenticar com o Google.');
             }
         };
     }
 
+    // Anónimo Auth
     const btnAnon = $('btn-login-anon');
     if (btnAnon) {
         btnAnon.onclick = async () => {
@@ -759,6 +760,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // E-mail Auth & Registo Toggle
     let modoRegisto = false;
     const btnToggleMode = $('btn-toggle-mode');
     const emailFormTitle = $('email-form-title');
@@ -798,11 +800,13 @@ function inicializarBotoesUI() {
                     mostrarToast('Sessão iniciada com sucesso!');
                 }
             } catch (e) {
+                console.error(e);
                 mostrarToast('Erro na autenticação. Verifique os dados.');
             }
         };
     }
 
+    // Logout / Switch User
     const btnSwitch = $('btn-switch-user');
     if (btnSwitch) {
         btnSwitch.onclick = async () => {
@@ -813,6 +817,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Reset Score
     const btnResetScore = $('btn-reset-score');
     if (btnResetScore) {
         btnResetScore.onclick = async () => {
@@ -829,6 +834,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Seletor de Nível
     const selectNivel = $('select-nivel');
     if (selectNivel) {
         selectNivel.onchange = (e) => {
@@ -841,6 +847,7 @@ function inicializarBotoesUI() {
         };
     }
 
+    // Botões de Jogo
     const btnReset = $('btn-reset');
     if (btnReset) {
         btnReset.onclick = () => {
@@ -857,17 +864,9 @@ function inicializarBotoesUI() {
 
     const btnUndo = $('btn-undo');
     if (btnUndo) btnUndo.onclick = desfazer;
-
-    const btnAutoSolve = $('btn-auto-solve');
-    if (btnAutoSolve) {
-        btnAutoSolve.onclick = () => {
-            if (confirm('Deseja ver a solução automática deste nível?')) {
-                resolverNivelAutomaticamente();
-            }
-        };
-    }
 }
 
+// Inicialização imediata ao carregar o módulo
 inicializarBotoesUI();
 verificarSessaoInicial();
 iniciarJogo(5);
