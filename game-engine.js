@@ -114,11 +114,10 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO GARANTIDA DE PARES (Baseada em Caminhos Validos)
+// GERAÇÃO GARANTIDA COM MARGEM DE CONTORNO
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
     const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
-    // Embaralha as direções aleatoriamente
     for (let i = dirs.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
@@ -161,22 +160,25 @@ export function gerarPares(tamanho, qtdPares) {
         const paresCandidatos = [];
         let geracaoComSucesso = true;
 
-        // Recolher células disponíveis para início/fim
-        const celulasLivres = [];
-        for (let r = 0; r < tamanho; r++) {
-            for (let c = 0; c < tamanho; c++) {
-                celulasLivres.push({ r, c });
+        // Deixamos a linha/coluna 0 e a última linha/coluna livres para servir de "corredor de contorno"
+        const margemMin = tamanho > 6 ? 1 : 0;
+        const margemMax = tamanho > 6 ? tamanho - 2 : tamanho - 1;
+
+        const celulasDisponiveis = [];
+        for (let r = margemMin; r <= margemMax; r++) {
+            for (let c = margemMin; c <= margemMax; c++) {
+                celulasDisponiveis.push({ r, c });
             }
         }
 
-        // Embaralhar células livres
-        for (let i = celulasLivres.length - 1; i > 0; i--) {
+        // Embaralhar células
+        for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [celulasLivres[i], celulasLivres[j]] = [celulasLivres[j], celulasLivres[i]];
+            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponiveis[j], celulasDisponiveis[i]];
         }
 
         for (let i = 0; i < qtdPares; i++) {
-            if (celulasLivres.length < 2) {
+            if (celulasDisponiveis.length < 2) {
                 geracaoComSucesso = false;
                 break;
             }
@@ -184,25 +186,23 @@ export function gerarPares(tamanho, qtdPares) {
             let a = null, b = null, caminho = null;
             let tentativasPar = 0;
 
-            // Tenta encontrar dois pontos livres que consigam ligar-se por um caminho livre
             while (tentativasPar < 20 && !caminho) {
-                if (celulasLivres.length < 2) break;
-                a = celulasLivres.pop();
-                b = celulasLivres.pop();
+                if (celulasDisponiveis.length < 2) break;
+                a = celulasDisponiveis.pop();
+                b = celulasDisponiveis.pop();
 
                 if (gridOcupado[a.r][a.c] || gridOcupado[b.r][b.c]) continue;
 
-                // Distância mínima para evitar pares triviais adjacentes
                 const dist = Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
                 if (dist < 2) {
-                    celulasLivres.unshift(b); // devolve se muito perto
+                    celulasDisponiveis.unshift(b);
                     tentativasPar++;
                     continue;
                 }
 
                 caminho = encontrarCaminhoAleatorio(a, b, gridOcupado, tamanho, tamanho * 2);
                 if (!caminho) {
-                    celulasLivres.unshift(b);
+                    celulasDisponiveis.unshift(b);
                 }
                 tentativasPar++;
             }
@@ -212,13 +212,10 @@ export function gerarPares(tamanho, qtdPares) {
                 break;
             }
 
-            // Marcar todas as células do caminho como ocupadas
             caminho.forEach(p => {
                 gridOcupado[p.r][p.c] = true;
             });
 
-            // Devolver as células não utilizadas do caminho para o pool se necessário, 
-            // ou mantê-las ocupadas para garantir que nenhum outro caminho cruze
             const pInfo = PALETA[i % PALETA.length];
             paresCandidatos.push({ id: i, cor: pInfo.cor, simbolo: pInfo.simbolo, a, b });
         }
@@ -228,11 +225,11 @@ export function gerarPares(tamanho, qtdPares) {
         }
     }
 
-    // Fallback seguro caso esgote as tentativas
+    // Fallback seguro em grelha
     const paresFallback = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        paresFallback.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 0 }, b: { r: i % tamanho, c: tamanho - 1 } });
+        paresFallback.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 1 }, b: { r: i % tamanho, c: tamanho - 2 } });
     }
     return paresFallback;
 }
