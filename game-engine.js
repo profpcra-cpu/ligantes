@@ -10,6 +10,7 @@ import {
     signInWithEmailAndPassword 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { tocarSom } from "./audio.js";
+import { resolverNivelAutomaticamente } from "./solver.js";
 
 // ────────────────────────────────────────────────────────────────
 // CONSTANTES E PALETA
@@ -37,7 +38,7 @@ const CONFIG_NIVEIS = {
     5: { tamanho: 12, pares: 12 }
 };
 
-const estado = {
+export const estado = {
     nivel: 5,
     tamanho: 12,
     grid: [],
@@ -171,7 +172,7 @@ export function gerarPares(tamanho, qtdPares) {
 
         for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponiveis[j], celulasDisponiveis[i]];
+            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponive[j], celulasDisponive[i]];
         }
 
         for (let i = 0; i < qtdPares; i++) {
@@ -255,7 +256,7 @@ function montarBoard() {
     board.appendChild(fragment);
 }
 
-function atualizarVisualDom() {
+export function atualizarVisualDom() {
     const n = estado.tamanho;
     for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
@@ -487,7 +488,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI, MÉTRICA DE AGILIDADE TOPOLÓGICA (IAT) E UTILITÁRIOS
+// UI, MÉTRICA IAT E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -500,7 +501,7 @@ function atualizarBotaoUndo() {
     }
 }
 
-function atualizarIAT(conectados) {
+export function atualizarIAT(conectados) {
     const totalPares = estado.pares.length;
     const fatorEspacial = estado.tamanho * 15;
     const pontosConexao = conectados * 25;
@@ -509,15 +510,14 @@ function atualizarIAT(conectados) {
     
     const iat = fatorEspacial + pontosConexao + bonusTempo;
     
-    const el = $('iq-display'); // Mantém o elemento visual do DOM atualizado
+    const el = $('iq-display');
     if (el) {
-        // Determina o título topológico com base no IAT acumulado
         let tituloPercurso = "Explorador de Trilha";
         if (iat > 500) tituloPercurso = "Arquiteto de Fluxos";
         else if (iat > 300) tituloPercurso = "Navegador Sináptico";
         else if (iat > 150) tituloPercurso = "Cartógrafo Urbano";
 
-        el.textContent = `IAT: ${iat} (${tituloPercurso})`;
+        el.textContent = `IAT: ${iat}`;
         if (conectados > 0) {
             el.classList.add('up');
             setTimeout(() => el.classList.remove('up'), 400);
@@ -549,7 +549,7 @@ function pararTimer() {
 }
 
 let toastTimeout = null;
-function mostrarToast(msg) {
+export function mostrarToast(msg) {
     const el = $('toast');
     if (!el) return;
     el.textContent = msg;
@@ -564,7 +564,7 @@ function vibrar(ms) {
     }
 }
 
-function verificarVitoria() {
+export function verificarVitoria() {
     const conectados = Object.keys(estado.trilhas).length;
     atualizarIAT(conectados);
 
@@ -864,6 +864,16 @@ function inicializarBotoesUI() {
 
     const btnUndo = $('btn-undo');
     if (btnUndo) btnUndo.onclick = desfazer;
+
+    // Botão de Auto-Resolução
+    const btnAutoSolve = $('btn-auto-solve');
+    if (btnAutoSolve) {
+        btnAutoSolve.onclick = () => {
+            if (confirm('Deseja ver a solução automática deste nível?')) {
+                resolverNivelAutomaticamente();
+            }
+        };
+    }
 }
 
 inicializarBotoesUI();
