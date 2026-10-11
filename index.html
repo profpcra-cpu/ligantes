@@ -82,6 +82,19 @@ body {
 }
 .header a:active { background: var(--btn-ghost); }
 
+.user-info {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--btn-ghost);
+    padding: 6px 10px;
+    border-radius: 8px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 #display-pontos {
     font-weight: 800;
     font-size: 14px;
@@ -375,6 +388,7 @@ select {
 <div class="container">
     <div class="header">
         <a href="javascript:history.back()" aria-label="Voltar">⬅ Voltar</a>
+        <div class="user-info" id="user-email-display" title="Utilizador autenticado">A carregar...</div>
         <span id="display-pontos" aria-live="polite">Pontos: 0</span>
     </div>
 
@@ -409,38 +423,27 @@ select {
 
 <script type="module">
 import { db } from "./firebase-config.js";
-import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { ref, update, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// Inicializar Auth do Firebase
+const auth = getAuth();
 
 // ────────────────────────────────────────────────────────────────
-// CONFIG
+// CONFIG E PALETA
 // ────────────────────────────────────────────────────────────────
 const PALETA = [
-    { cor: '#22c55e', simbolo: '●' },   // verde - círculo
-    { cor: '#3b82f6', simbolo: '▲' },   // azul - triângulo
-    { cor: '#ef4444', simbolo: '■' },   // vermelho - quadrado
-    { cor: '#f59e0b', simbolo: '★' },   // laranja - estrela
-    { cor: '#a855f7', simbolo: '◆' },   // roxo - losango
-    { cor: '#06b6d4', simbolo: '✚' },   // ciano - cruz
-    { cor: '#ec4899', simbolo: '♥' },   // rosa - coração
-    { cor: '#84cc16', simbolo: '⬟' }    // lima - pentágono
+    { cor: '#22c55e', simbolo: '●' },   // verde
+    { cor: '#3b82f6', simbolo: '▲' },   // azul
+    { cor: '#ef4444', simbolo: '■' },   // vermelho
+    { cor: '#f59e0b', simbolo: '★' },   // laranja
+    { cor: '#a855f7', simbolo: '◆' },   // roxo
+    { cor: '#06b6d4', simbolo: '✚' },   // ciano
+    { cor: '#ec4899', simbolo: '♥' },   // rosa
+    { cor: '#84cc16', simbolo: '⬟' }    // lima
 ];
 
 const TAMANHO_POR_NIVEL = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12 };
-
-// ────────────────────────────────────────────────────────────────
-// ESTADO
-// ────────────────────────────────────────────────────────────────
-function lerJogadorSessao() {
-    try {
-        const raw = localStorage.getItem('brain_hub_jogador');
-        if (!raw) return { chave: 'visitante_default', nome: 'Jogador', avatar: '🎮' };
-        const p = JSON.parse(raw);
-        if (!p || typeof p !== 'object') throw new Error('inválido');
-        return { nome: 'Jogador', avatar: '🎮', ...p };
-    } catch (_) {
-        return { chave: 'visitante_default', nome: 'Jogador', avatar: '🎮' };
-    }
-}
 
 const estado = {
     nivel: 5,
@@ -455,10 +458,78 @@ const estado = {
     timer: null,
     concluido: false,
     inicioIQ: 90,
-    jogadorSessao: lerJogadorSessao()
+    utilizador: { uid: 'visitante_default', email: 'Convidado', nome: 'Jogador' }
 };
 
 const $ = (id) => document.getElementById(id);
+
+// ────────────────────────────────────────────────────────────────
+// LOGIN AUTOMÁTICO E GESTÃO DE UTILIZADOR
+// ────────────────────────────────────────────────────────────────
+function inicializarAutenticacao() {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // Utilizador já autenticado
+            configurarSessaoUtilizador(user);
+        } else {
+            // Tenta recuperar sessão anterior ou efetuar login automático/anónimo seguro
+            try {
+                const localCred = localStorage.getItem('brain_hub_jogador');
+                if (localCred) {
+                    const parsed = JSON.parse(localCred);
+                    estado.utilizador = { ...estado.utilizador, ...parsed };
+                    $('user-email-display').textContent = estado.utilizador.email;
+                }
+                
+                // Autenticação anónima ou redirecionamento Google automático se necessário
+                const result = await signInAnonymously(auth);
+                configurarSessaoUtilizador(result.user);
+            } catch (err) {
+                console.warn("Modo offline ativo:", err);
+                $('user-email-display').textContent = estado.utilizador.email;
+            }
+        }
+        carregarPontosDoFirebase();
+    });
+}
+
+function configurarSessaoUtilizador(user) {
+    const emailStr = user.email || (user.isAnonymous ? "Convidado (Anónimo)" : "utilizador@google.com");
+    estado.utilizador = {
+        uid: user.uid,
+        email: emailStr,
+        nome: user.displayName || emailStr.split('@')[0]
+    };
+    
+    $('user-email-display').textContent = estado.utilizador.email;
+    try {
+        localStorage.setItem('brain_hub_jogador', JSON.stringify(estado.utilizador));
+    } catch (_) {}
+}
+
+async function carregarPontosDoFirebase() {
+    try {
+        const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            if (typeof data.pontos === 'number') {
+                estado.pontos = data.pontos;
+                $('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+                salvarLocal();
+            }
+        }
+    } catch (e) {
+        // Fallback local se falhar a leitura
+        try {
+            const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
+            if (!isNaN(p)) {
+                estado.pontos = p;
+                $('display-pontos').textContent = `Pontos: ${estado.pontos}`;
+            }
+        } catch (_) {}
+    }
+}
 
 // ────────────────────────────────────────────────────────────────
 // GERAÇÃO INTELIGENTE DE PARES (Dispersão Máxima + Validação)
@@ -610,7 +681,7 @@ function gerarParesFallbackSimples(tamanho, qtdPares) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// RENDER
+// RENDER DO TABULEIRO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -664,7 +735,7 @@ function atualizarVisualDom() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// REGRAS DO JOGO
+// REGRAS DE JOGO E INPUT
 // ────────────────────────────────────────────────────────────────
 function iniciarDesenho(r, c) {
     if (estado.concluido) return false;
@@ -840,9 +911,6 @@ function desfazer() {
     atualizarProgresso();
 }
 
-// ────────────────────────────────────────────────────────────────
-// SISTEMA DE DICAS
-// ────────────────────────────────────────────────────────────────
 function darDica() {
     if (estado.concluido) return;
     
@@ -883,7 +951,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI
+// UI E FEEDBACK
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -947,7 +1015,7 @@ function vibrar(ms) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// VITÓRIA + PERSISTÊNCIA
+// VITÓRIA E PERSISTÊNCIA NO FIREBASE
 // ────────────────────────────────────────────────────────────────
 function verificarVitoria() {
     if (Object.keys(estado.trilhas).length !== estado.pares.length) return;
@@ -967,25 +1035,32 @@ function verificarVitoria() {
 
     atualizarBotaoUndo();
     salvarLocal();
-    salvarNoFirebase();
+    sincronizarPontuacaoFirebase();
 }
 
 function salvarLocal() {
-    try { localStorage.setItem('brain_hub_pontos', String(estado.pontos)); } catch (_) {}
-}
-
-async function salvarNoFirebase() {
-    try {
-        const refUser = ref(db, 'jogadores/' + estado.jogadorSessao.chave);
-        await update(refUser, {
-            pontos: estado.pontos,
-            ultimaAtividade: new Date().toISOString()
-        });
+    try { 
+        localStorage.setItem('brain_hub_pontos', String(estado.pontos)); 
     } catch (_) {}
 }
 
+async function sincronizarPontuacaoFirebase() {
+    try {
+        const userRef = ref(db, 'jogadores/' + estado.utilizador.uid);
+        await set(userRef, {
+            email: estado.utilizador.email,
+            nome: estado.utilizador.nome,
+            pontos: estado.pontos,
+            nivelAtual: estado.nivel,
+            ultimaAtividade: new Date().toISOString()
+        });
+    } catch (e) {
+        console.warn("Erro ao sincronizar com o Firebase:", e);
+    }
+}
+
 // ────────────────────────────────────────────────────────────────
-// INPUT — Pointer Events
+// INPUT TÁTIL / POINTER EVENTS
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
@@ -1068,7 +1143,7 @@ board.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false
 board.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
 // ────────────────────────────────────────────────────────────────
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO DO JOGO
 // ────────────────────────────────────────────────────────────────
 function iniciarJogo(nivel) {
     const n = Math.max(1, Math.min(5, parseInt(nivel, 10) || 5));
@@ -1101,7 +1176,7 @@ function iniciarJogo(nivel) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// CONTROLES E EVENTOS
+// EVENTOS DE CONTROLOS
 // ────────────────────────────────────────────────────────────────
 $('select-nivel').addEventListener('change', (e) => {
     const temProgresso = Object.keys(estado.trilhas).length > 0 && !estado.concluido;
@@ -1123,16 +1198,9 @@ $('btn-reset').addEventListener('click', () => {
 $('btn-hint').addEventListener('click', darDica);$('btn-undo').addEventListener('click', desfazer);
 
 // ────────────────────────────────────────────────────────────────
-// BOOT
+// BOOT GLOBAL
 // ────────────────────────────────────────────────────────────────
-try {
-    const p = parseInt(localStorage.getItem('brain_hub_pontos') || '0', 10);
-    if (!isNaN(p)) {
-        estado.pontos = p;
-        $('display-pontos').textContent = `Pontos: ${estado.pontos}`;
-    }
-} catch (_) {}
-
+inicializarAutenticacao();
 iniciarJogo(5);
 
 document.addEventListener('visibilitychange', () => {
