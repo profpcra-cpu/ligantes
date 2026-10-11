@@ -114,7 +114,7 @@ async function carregarPontosDoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// GERAÇÃO GARANTIDA COM MARGEM DE CONTORNO
+// GERAÇÃO GARANTIDA DE PARES
 // ────────────────────────────────────────────────────────────────
 function obterVizinhosEmbaralhados(r, c, tamanho) {
     const dirs = [{r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}];
@@ -172,7 +172,7 @@ export function gerarPares(tamanho, qtdPares) {
 
         for (let i = celulasDisponiveis.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [celulasDisponiveis[i], celulasDisponive[j]] = [celulasDisponive[j], celulasDisponive[i]];
+            [celulasDisponiveis[i], celulasDisponiveis[j]] = [celulasDisponive[j], celulasDisponive[i]];
         }
 
         for (let i = 0; i < qtdPares; i++) {
@@ -230,8 +230,9 @@ export function gerarPares(tamanho, qtdPares) {
     }
     return paresFallback;
 }
+
 // ────────────────────────────────────────────────────────────────
-// RENDER E MECÂNICA DE JOGO
+// RENDERIZAÇÃO E MECÂNICA DE JOGO
 // ────────────────────────────────────────────────────────────────
 function montarBoard() {
     const board = $('board');
@@ -487,7 +488,7 @@ function darDica() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// UI, MÉTRICA IAT E UTILITÁRIOS
+// UI, IAT E UTILITÁRIOS
 // ────────────────────────────────────────────────────────────────
 function atualizarProgresso() {
     const total = estado.pares.length;
@@ -511,11 +512,6 @@ export function atualizarIAT(conectados) {
     
     const el = $('iq-display');
     if (el) {
-        let tituloPercurso = "Explorador de Trilha";
-        if (iat > 500) tituloPercurso = "Arquiteto de Fluxos";
-        else if (iat > 300) tituloPercurso = "Navegador Sináptico";
-        else if (iat > 150) tituloPercurso = "Cartógrafo Urbano";
-
         el.textContent = `IAT: ${iat}`;
         if (conectados > 0) {
             el.classList.add('up');
@@ -606,7 +602,7 @@ async function sincronizarPontuacaoFirebase() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// INPUTS DE TOQUE (POINTER EVENTS)
+// EVENTOS DE PONTEIRO E TOQUE
 // ────────────────────────────────────────────────────────────────
 let activePointerId = null;
 let ultimaCellTocada = null;
@@ -735,7 +731,7 @@ export function iniciarJogo(nivel) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// LIGAÇÃO DIRETA DOS BOTÕES E CONTROLOS DA UI
+// INICIALIZAÇÃO DA INTERFACE E BOTÕES
 // ────────────────────────────────────────────────────────────────
 function inicializarBotoesUI() {
     const btnGoogle = $('btn-login-google');
@@ -746,7 +742,6 @@ function inicializarBotoesUI() {
                 await signInWithPopup(auth, provider);
                 mostrarToast('Autenticado com sucesso!');
             } catch (e) {
-                console.error(e);
                 mostrarToast('Erro ao autenticar com o Google.');
             }
         };
@@ -803,7 +798,6 @@ function inicializarBotoesUI() {
                     mostrarToast('Sessão iniciada com sucesso!');
                 }
             } catch (e) {
-                console.error(e);
                 mostrarToast('Erro na autenticação. Verifique os dados.');
             }
         };
@@ -864,7 +858,6 @@ function inicializarBotoesUI() {
     const btnUndo = $('btn-undo');
     if (btnUndo) btnUndo.onclick = desfazer;
 
-    // Botão de Auto-Resolução
     const btnAutoSolve = $('btn-auto-solve');
     if (btnAutoSolve) {
         btnAutoSolve.onclick = () => {
