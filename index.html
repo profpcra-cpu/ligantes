@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brain Curves</title>
 
-    <!-- Renderizador de Markdown (só é usado quando abres o modal "Sobre") -->
-    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
-
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -412,7 +409,7 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        /* ─────────── MODAL DO README ─────────── */
+        /* ─────────── MODAL DO README / SOBRE ─────────── */
         .readme-overlay {
             position: fixed;
             inset: 0;
@@ -718,52 +715,49 @@
     <!-- SCRIPT PRINCIPAL DO JOGO -->
     <script type="module" src="./game-engine.js"></script>
 
-    <!-- LÓGICA DO MODAL README -->
-    <script>
-        (function () {
-            'use strict';
+    <!-- LÓGICA DO MODAL "SOBRE" — carrega conteúdo de sobre.js -->
+    <script type="module">
+        import { marked } from 'https://esm.sh/marked@12';
 
-            const modal = document.getElementById('readme-modal');
-            const conteudo = document.getElementById('readme-content');
-            const btnAbout = document.getElementById('btn-about');
-            const btnClose = document.getElementById('btn-close-readme');
+        const modal = document.getElementById('readme-modal');
+        const conteudo = document.getElementById('readme-content');
+        const btnAbout = document.getElementById('btn-about');
+        const btnClose = document.getElementById('btn-close-readme');
 
-            if (!modal || !btnAbout || !conteudo) return;
-
+        if (!modal || !btnAbout || !conteudo) {
+            console.warn('[Sobre] Elementos do modal não encontrados.');
+        } else {
             let jaCarregado = false;
             let focoAnterior = null;
 
-            async function carregarReadme() {
+            async function renderizarSobre() {
                 if (jaCarregado) return;
 
-                if (!window.marked || typeof window.marked.parse !== 'function') {
-                    conteudo.innerHTML =
-                        '<p style="color:#dc2626;text-align:center;padding:20px;">' +
-                        '⚠️ Renderizador de Markdown indisponível. Verifique a ligação à internet.</p>';
-                    return;
-                }
-
                 try {
-                    const resposta = await fetch('./README.md', { cache: 'no-cache' });
-                    if (!resposta.ok) throw new Error('README não encontrado');
+                    const modulo = await import('./sobre.js');
+                    const md = modulo.CONTEUDO_SOBRE || modulo.default || '';
 
-                    const md = await resposta.text();
-                    conteudo.innerHTML = window.marked.parse(md);
-                    jaCarregado = true;
+                    if (!md.trim()) {
+                        conteudo.innerHTML =
+                            '<p style="text-align:center;padding:20px;color:#dc2626;">⚠️ Conteúdo do "Sobre" vazio.</p>';
+                        return;
+                    }
 
-                    // Links externos abrem em nova aba
+                    conteudo.innerHTML = marked.parse(md);
+
                     conteudo.querySelectorAll('a[href^="http"]').forEach((a) => {
                         a.setAttribute('target', '_blank');
                         a.setAttribute('rel', 'noopener noreferrer');
                     });
+
+                    jaCarregado = true;
                 } catch (e) {
-                    console.warn('Falha ao carregar README:', e);
+                    console.error('[Sobre] Falha ao carregar sobre.js:', e);
                     conteudo.innerHTML =
                         '<p style="color:#dc2626;text-align:center;padding:20px;">' +
-                        '⚠️ Não foi possível carregar o README.<br>' +
+                        '⚠️ Não foi possível carregar o conteúdo do "Sobre".<br>' +
                         '<small style="color:#64748b;font-size:12px;">' +
-                        'Certifique-se de que o ficheiro <code>README.md</code> está na raiz ' +
-                        'e que o projeto está a ser servido por HTTP (não via <code>file://</code>).' +
+                        'Verifique se o ficheiro <code>sobre.js</code> existe na raiz do projeto.' +
                         '</small></p>';
                 }
             }
@@ -772,7 +766,7 @@
                 focoAnterior = document.activeElement;
                 modal.classList.add('active');
                 document.body.style.overflow = 'hidden';
-                carregarReadme();
+                renderizarSobre();
                 setTimeout(() => btnClose?.focus(), 50);
             }
 
@@ -787,18 +781,16 @@
             btnAbout.addEventListener('click', abrirModal);
             btnClose?.addEventListener('click', fecharModal);
 
-            // Fecha ao clicar fora do card
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) fecharModal();
             });
 
-            // Fecha com Esc
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && modal.classList.contains('active')) {
                     fecharModal();
                 }
             });
-        })();
+        }
     </script>
 </body>
 </html>
