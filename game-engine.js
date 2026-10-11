@@ -29,7 +29,14 @@ export const PALETA = [
     { cor: '#0ea5e9', simbolo: '❄' }
 ];
 
-const TAMANHO_POR_NIVEL = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12 };
+// Progressão estruturada: { nível: { tamanho da grelha, quantidade de pares } }
+const CONFIG_NIVEIS = {
+    1: { tamanho: 6, pares: 3 },
+    2: { tamanho: 8, pares: 5 },
+    3: { tamanho: 10, pares: 7 },
+    4: { tamanho: 11, pares: 9 },
+    5: { tamanho: 12, pares: 12 }
+};
 
 const estado = {
     nivel: 5,
@@ -155,8 +162,8 @@ function validarSolvabilidade(tamanho, pares) {
 export function gerarPares(tamanho, qtdPares) {
     let melhorPares = [];
     let maxDistanciaGlobal = -1;
-    const margem = 1;
-    const limite = tamanho - margem;
+    const margem = 0;
+    const limite = tamanho;
 
     for (let t = 0; t < 100; t++) {
         const paresCandidatos = [];
@@ -228,7 +235,7 @@ function gerarParesFallbackSimples(tamanho, qtdPares) {
     const pares = [];
     for (let i = 0; i < qtdPares; i++) {
         const p = PALETA[i % PALETA.length];
-        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: 1 + i, c: 1 }, b: { r: 1 + i, c: tamanho - 2 } });
+        pares.push({ id: i, cor: p.cor, simbolo: p.simbolo, a: { r: i % tamanho, c: 0 }, b: { r: i % tamanho, c: tamanho - 1 } });
     }
     return pares;
 }
@@ -339,7 +346,7 @@ function aplicarPasso(r, c) {
         estado.desenhando = null;
 
         vibrar(15);
-        tocarSom('par'); // 🎵 Som de sucesso ao ligar o par
+        tocarSom('par');
         atualizarVisualDom();
         atualizarProgresso();
         verificarVitoria();
@@ -447,7 +454,7 @@ function desfazer() {
     estado.concluido = false;
     estado.desenhando = null;
     vibrar(10);
-    tocarSom('erro'); // 🎵 Som subtil ao desfazer
+    tocarSom('erro');
     atualizarVisualDom();
     atualizarBotaoUndo();
     atualizarProgresso();
@@ -571,7 +578,7 @@ function verificarVitoria() {
     atualizarIQ(estado.pares.length);
 
     vibrar([30, 50, 30]);
-    tocarSom('vitoria'); // 🎵 Toca o som de vitória do nível
+    tocarSom('vitoria');
     mostrarToast(`🎉 Nível ${estado.nivel} completo! +${ganho} pts`);
 
     atualizarBotaoUndo();
@@ -696,8 +703,12 @@ if (board) {
 export function iniciarJogo(nivel) {
     const n = Math.max(1, Math.min(5, parseInt(nivel, 10) || 5));
     estado.nivel = n;
-    estado.tamanho = TAMANHO_POR_NIVEL[n] || 12;
-    estado.pares = gerarPares(estado.tamanho, n);
+    
+    const config = CONFIG_NIVEIS[n] || CONFIG_NIVEIS[5];
+    estado.tamanho = config.tamanho;
+    const qtdPares = config.pares;
+
+    estado.pares = gerarPares(estado.tamanho, qtdPares);
     estado.trilhas = {};
     estado.historico = [];
     estado.desenhando = null;
